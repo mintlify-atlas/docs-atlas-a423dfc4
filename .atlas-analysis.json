@@ -1,0 +1,105 @@
+{
+  "projectType": "saas",
+  "projectName": "Sistema de Permisos Municipales",
+  "projectDescription": "Sistema de gestión de permisos de publicidad, bebidas alcohólicas y eventos especiales para la Dirección de Asuntos Públicos de la Alcaldía de Lechería.",
+  "theme": "linden",
+  "primaryColor": "#2563eb",
+  "lightColor": "#60a5fa",
+  "darkColor": "#1e40af",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentación",
+        "groups": [
+          {
+            "group": "Inicio",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Guías de Usuario",
+            "pages": [
+              "guides/authentication",
+              "guides/user-management",
+              "guides/permit-workflow"
+            ]
+          },
+          {
+            "group": "Permisos",
+            "pages": [
+              "permits/alcoholic-beverages",
+              "permits/advertising-propaganda",
+              "permits/special-events"
+            ]
+          },
+          {
+            "group": "Administración",
+            "pages": [
+              "admin/roles-permissions",
+              "admin/reports",
+              "admin/configuration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Referencia Técnica",
+        "groups": [
+          {
+            "group": "Arquitectura",
+            "pages": [
+              "technical/architecture",
+              "technical/database-schema",
+              "technical/websockets"
+            ]
+          },
+          {
+            "group": "API",
+            "pages": [
+              "api/authentication",
+              "api/permits",
+              "api/users"
+            ]
+          },
+          {
+            "group": "Despliegue",
+            "pages": [
+              "deployment/installation",
+              "deployment/configuration",
+              "deployment/security"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Gestión de permisos de bebidas alcohólicas con validación de documentos",
+    "Sistema de permisos de publicidad y propaganda con múltiples tipos de material",
+    "Administración de permisos para eventos especiales",
+    "Control de acceso basado en roles (Administrador, Analista, Desarrollador)",
+    "Actualizaciones en tiempo real mediante WebSockets",
+    "Generación de PDF para permisos y reportes",
+    "Sistema de búsqueda y filtrado de permisos",
+    "Gestión de usuarios con autenticación bcrypt"
+  ],
+  "publicApiSurface": [
+    "POST /usuarios/login - Autenticación de usuarios",
+    "GET /venta_de_bebidas - Listar permisos de bebidas alcohólicas",
+    "POST /venta_de_bebidas/add - Crear permiso de bebidas",
+    "POST /venta_de_bebidas/edit - Editar permiso de bebidas",
+    "POST /venta_de_bebidas/aprobate - Aprobar permiso de bebidas",
+    "GET /publicidad_y_propaganda - Listar permisos de publicidad",
+    "POST /publicidad_y_propaganda/add - Crear permiso de publicidad",
+    "POST /publicidad_y_propaganda/edit - Editar permiso de publicidad",
+    "GET /eventos_especiales - Listar permisos de eventos",
+    "POST /eventos_especiales/add - Crear permiso de eventos",
+    "GET /usuarios - Gestión de usuarios del sistema",
+    "POST /usuarios/add - Crear nuevo usuario",
+    "Socket.io bebidas:nuevo-permiso - Notificación de nuevo permiso de bebidas",
+    "Socket.io publicidad:nuevo-permiso - Notificación de nuevo permiso de publicidad",
+    "Socket.io eventos:nuevo-permiso - Notificación de nuevo permiso de eventos"
+  ]
+}
