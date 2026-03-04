@@ -1,0 +1,424 @@
+---
+title: Permit workflow
+description: Understanding the complete lifecycle of permits in the Sistema de Permisos Municipales
+---
+
+## Overview
+
+The permit workflow in the Sistema de Permisos Municipales follows a standardized process from creation to approval or cancellation. This guide covers the complete lifecycle for all three permit types.
+
+## Workflow stages
+
+<Steps>
+  <Step title="Creation">
+    A user creates a new permit request with all required information and supporting documents.
+  </Step>
+  <Step title="Review">
+    The permit appears in the system as pending approval. Staff can view and review the details.
+  </Step>
+  <Step title="Decision">
+    An authorized user either approves the permit (uploading the authorized document) or cancels it with an observation.
+  </Step>
+  <Step title="Completion">
+    Approved permits can be exported as PDF. Cancelled permits remain in the system with their observations.
+  </Step>
+</Steps>
+
+## Creating a permit
+
+### Required information
+
+All permits require the following base information:
+
+<ParamField path="habilitacion" type="date" required>
+  Start date of the permit validity period
+</ParamField>
+
+<ParamField path="vencimiento" type="date" required>
+  End date of the permit validity period
+</ParamField>
+
+<ParamField path="horario" type="string" required>
+  Operating schedule or time restrictions
+</ParamField>
+
+<ParamField path="nombre" type="string" required>
+  Applicant's first name
+</ParamField>
+
+<ParamField path="apellido" type="string" required>
+  Applicant's last name
+</ParamField>
+
+<ParamField path="idDocument" type="string" required>
+  Applicant's ID document number
+</ParamField>
+
+<ParamField path="tlf" type="string" required>
+  Contact phone number
+</ParamField>
+
+<ParamField path="habitacion" type="string" required>
+  Applicant's address
+</ParamField>
+
+<ParamField path="sector" type="string" required>
+  Location where the permit applies
+</ParamField>
+
+<ParamField path="comprobante" type="file">
+  Payment receipt document (optional)
+</ParamField>
+
+### Date validation
+
+The system validates that permits are created on the current date:
+
+```javascript
+// Date must match today's date
+if(req.body.today == gf.adaptNumDay(hoy.getFullYear()) + '-' + 
+                    gf.adaptNumDay(hoy.getMonth()+1) + '-' + 
+                    gf.adaptNumDay(hoy.getDate())){
+  // Process permit
+} else {
+  // Return error: ¡Fecha Incorrecta!
+}
+```
+
+<Warning>
+Permits can only be created with today's date. The system checks the `today` field against the server's current date.
+</Warning>
+
+### Permit code generation
+
+Each permit receives a unique code:
+
+```javascript
+// Format: YEAR-###
+// Example: 2024-001, 2024-002, etc.
+
+let lastPermiso = fecha.getFullYear() + '-' + gf.adaptNum(1);
+
+if(result.length > 0){
+  lastPermiso = result[result.length-1].codigo_permiso;
+  lastPermiso = fecha.getFullYear() + '-' + 
+                gf.adaptNum(Number(lastPermiso.substr(5)) + 1);
+}
+```
+
+<Note>
+Permit codes are sequential within each year and auto-generated. You cannot manually set the code.
+</Note>
+
+### File upload handling
+
+Payment receipts are uploaded using multipart form data:
+
+```javascript
+// Multer configuration for file uploads
+const storageProyect = multer.diskStorage({
+  destination: path.join(__dirname, '../public/server-files/temps/'),
+  filename: (req, file, funcion) => {
+    funcion(null, file.fieldname + '_de_pago_' + Date.now() + 
+            file.originalname.substr(file.originalname.lastIndexOf('.')));
+  }
+});
+```
+
+Files are temporarily stored, then moved to the final location:
+- Bebidas: `src/public/server-files/asuntos_publicos/permisos_municipales/bebidas/`
+- Publicidad: `src/public/server-files/asuntos_publicos/permisos_municipales/publicidad/`
+- Eventos: `src/public/server-files/asuntos_publicos/permisos_municipales/eventos/`
+
+## Reviewing permits
+
+### Listing permits
+
+Retrieve all permits for a specific type:
+
+```javascript
+GET /venta_de_bebidas          // Alcoholic beverages
+GET /publicidad_y_propaganda   // Advertising
+GET /eventos_especiales        // Special events
+```
+
+### Searching and filtering
+
+The search endpoint allows filtering permits:
+
+```javascript
+POST /venta_de_bebidas/search
+Content-Type: application/x-www-form-urlencoded
+
+estado=Todos&busqueda=search_term
+```
+
+<ParamField path="estado" type="string">
+  Filter by status: "Todos", "Emitido", or "No Emitido"
+</ParamField>
+
+<ParamField path="busqueda" type="string">
+  Search term (searches across codigo, nombre, cedula, sector, etc.)
+</ParamField>
+
+The system searches across multiple fields:
+- Permit code (codigo_permiso)
+- Applicant name (requisitor_nombre + requisitor_apellido)
+- ID document (requisitor_doc)
+- Phone number (requisitor_tlf)
+- Authorized sector (sector_permisado)
+- Dates (habilitacion, vencimiento)
+
+### Viewing permit details
+
+Retrieve a specific permit:
+
+```javascript
+POST /venta_de_bebidas/get
+Content-Type: application/x-www-form-urlencoded
+
+id=123
+```
+
+Response includes all permit data and the current user's information.
+
+## Editing permits
+
+<Warning>
+Permits can only be edited before they are approved (emitido=0).
+</Warning>
+
+To edit a permit:
+
+```javascript
+POST /venta_de_bebidas/edit
+Content-Type: multipart/form-data
+
+permiso=123
+habilitacion=2024-01-15
+vencimiento=2024-12-31
+...(all other fields)
+```
+
+When editing:
+- Date validation still applies (must match today)
+- Can update the payment receipt file
+- Editor's name is recorded in the `editor` field
+- Original creator is preserved in the `creador` field
+
+## Approving permits
+
+<Steps>
+  <Step title="Review the permit details">
+    Ensure all information is correct and payment is confirmed.
+  </Step>
+  
+  <Step title="Prepare authorized document">
+    Create the official permit document to be uploaded.
+  </Step>
+  
+  <Step title="Submit approval">
+    Upload the authorized permit document:
+    
+    ```javascript
+    POST /venta_de_bebidas/aprobate
+    Content-Type: multipart/form-data
+    
+    permiso=123
+    permiso_aprobado=[file]
+    ```
+  </Step>
+  
+  <Step title="System sets emitido=1">
+    The permit is marked as approved and can no longer be edited.
+  </Step>
+</Steps>
+
+<Note>
+Once a permit is approved (emitido=1), it cannot be edited or deleted. Only cancellation is possible.
+</Note>
+
+## Cancelling permits
+
+Permits can be cancelled with an observation explaining the reason:
+
+```javascript
+POST /venta_de_bebidas/cancel
+Content-Type: application/x-www-form-urlencoded
+
+permiso=123
+observacion=Documento de pago inválido
+```
+
+<ParamField path="observacion" type="string" required>
+  Explanation for the cancellation (stored in database)
+</ParamField>
+
+When cancelled:
+- The `cancelado` field is set to 1
+- The observation is stored
+- The permit remains in the system for record-keeping
+- It appears with a "canceled" status in searches
+
+## Real-time notifications
+
+The system uses WebSockets to notify users of permit changes in real time:
+
+```javascript
+// Client-side: Listen for new permits
+socket.on('bebidas:nuevo-permiso', (data) => {
+  console.log('New permit created:', data.codigo_permiso);
+  // Update UI with new permit
+});
+
+// Listen for permit edits
+socket.on('bebidas:edit-permiso', (data) => {
+  console.log('Permit edited:', data.permiso.id);
+  // Update UI with edited permit
+});
+
+// Listen for approvals
+socket.on('bebidas:aprobate-permiso', (data) => {
+  console.log('Permit approved:', data.permiso.id);
+  // Update UI
+});
+
+// Listen for cancellations
+socket.on('bebidas:cancel-permiso', (data) => {
+  console.log('Permit cancelled:', data.permiso.id);
+  // Update UI
+});
+```
+
+See the [WebSockets documentation](/technical/websockets) for complete event reference.
+
+## Generating PDFs
+
+### Individual permit PDFs
+
+Generate a PDF for a specific approved permit:
+
+```javascript
+GET /venta_de_bebidas/permiso/bebidas-alcoholicas_2024-001
+```
+
+The URL format includes the permit type prefix and code:
+- Bebidas: `bebidas-alcoholicas_YYYY-###`
+- Publicidad: `publicidad-y-propaganda_YYYY-###`
+- Eventos: `eventos-especiales_YYYY-###`
+
+The system:
+1. Retrieves permit data from database
+2. Renders EJS template with permit information
+3. Converts HTML to PDF using html-pdf and phantomjs
+4. Returns PDF buffer with `Content-Type: application/pdf`
+
+### Batch reports
+
+Generate comprehensive reports for all permits:
+
+```javascript
+GET /venta_de_bebidas/reporte
+GET /publicidad_y_propaganda/reporte
+GET /eventos_especiales/reporte
+```
+
+Reports include:
+- Total registered permits
+- Emitted permits (emitido=1, cancelado=0)
+- Not emitted permits (emitido=0)
+- Cancelled permits (cancelado=1)
+- Authorized permits (dat_confirmacion=1)
+- Not authorized permits (dat_confirmacion=0)
+
+<Accordion title="Report structure example">
+```
+Reporte Completo de Permisos de Venta de Bebidas Alcohólicas
+
+Registrados: 150 / Emitidos: 120 / No Emitidos: 20 / Cancelados: 10
+
+Permisos Emitidos: 120
+[Table with codigo, requisitor, authorized, fecha_creacion]
+
+Permisos no Emitidos: 20
+[Table with pending permits]
+
+Permisos Cancelados: 10
+[Table with cancelled permits]
+...
+```
+</Accordion>
+
+## Deleting permits
+
+<Warning>
+**Deletion restrictions:**
+- Only Administrador and Desarrollador roles can delete
+- Can only delete permits that have NOT been approved (emitido=0)
+- Cannot delete if there are newer approved permits in the same year
+- Deletion recalculates permit codes for all subsequent permits
+</Warning>
+
+Deletion endpoint:
+
+```javascript
+DELETE /venta_de_bebidas
+Content-Type: application/x-www-form-urlencoded
+
+id=123
+```
+
+The system performs these checks:
+1. Verifies permit exists
+2. Confirms it has not been approved
+3. Checks if any later permits in the same year have been approved
+4. Deletes the permit file
+5. Removes the database record
+6. Recalculates codes for all subsequent permits in the same year
+
+## Permit states
+
+Permits can be in one of three visual states:
+
+<CardGroup cols={3}>
+  <Card title="Disaproved" icon="clock" color="#fbbf24">
+    Not yet approved (emitido=0). Can be edited or deleted.
+  </Card>
+  <Card title="Aproved" icon="check" color="#10b981">
+    Approved (emitido=1, cancelado=0). Cannot be edited. Can only be cancelled.
+  </Card>
+  <Card title="Canceled" icon="xmark" color="#ef4444">
+    Cancelled (cancelado=1). Preserved for records with observation note.
+  </Card>
+</CardGroup>
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Verify information" icon="clipboard-check">
+    Double-check all fields before approving. Approved permits cannot be edited.
+  </Card>
+  <Card title="Document cancellations" icon="file-pen">
+    Always provide clear observations when cancelling permits.
+  </Card>
+  <Card title="Keep receipts" icon="receipt">
+    Upload payment receipts whenever available for complete records.
+  </Card>
+  <Card title="Monitor real-time" icon="bell">
+    Enable WebSocket notifications to stay informed of new permits.
+  </Card>
+</CardGroup>
+
+## Next steps
+
+<CardGroup cols={3}>
+  <Card title="Alcoholic beverages" icon="wine-glass" href="/permits/alcoholic-beverages">
+    Detailed guide for beverage permits
+  </Card>
+  <Card title="Advertising" icon="bullhorn" href="/permits/advertising-propaganda">
+    Advertising permit specifics
+  </Card>
+  <Card title="Special events" icon="calendar" href="/permits/special-events">
+    Event permit details
+  </Card>
+</CardGroup>

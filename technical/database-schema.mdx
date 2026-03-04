@@ -1,0 +1,340 @@
+---
+title: 'Database Schema'
+description: 'Complete database structure for the asuntos_publicos system'
+---
+
+## Database Overview
+
+**Database Name**: `asuntos_publicos`
+
+The database contains four main tables for managing municipal permits and user authentication:
+
+<CardGroup cols={2}>
+  <Card title="permisos_bebidas" icon="wine-glass">
+    Alcohol sales permits
+  </Card>
+  
+  <Card title="permisos_eventos" icon="calendar">
+    Special event permits
+  </Card>
+  
+  <Card title="permisos_publicidad" icon="bullhorn">
+    Advertising and propaganda permits
+  </Card>
+  
+  <Card title="usuarios" icon="users">
+    System users and authentication
+  </Card>
+</CardGroup>
+
+## Table: permisos_bebidas
+
+Stores permits for alcoholic beverage sales.
+
+```sql
+CREATE TABLE permisos_bebidas(
+  id INT(11) NOT NULL PRIMARY KEY,
+  codigo_permiso VARCHAR(200) NOT NULL,
+  habilitacion DATE NOT NULL,
+  vencimiento DATE NOT NULL,
+  horario VARCHAR(30) NOT NULL,
+  dat_confirmacion BOOLEAN NOT NULL,
+  requisitor_nombre VARCHAR(50) NOT NULL,
+  requisitor_apellido VARCHAR(50) NOT NULL,
+  requisitor_doc VARCHAR(15) NOT NULL,
+  requisitor_tlf VARCHAR(50) NOT NULL,
+  requisitor_habitacion TEXT(1000) NOT NULL,
+  sector_permisado TEXT(1000) NOT NULL,
+  comprobante_de_pago VARCHAR(2500) NOT NULL,
+  permiso_autorizado VARCHAR(2500) NOT NULL,
+  creador VARCHAR(200) NOT NULL,
+  editor VARCHAR(200) NOT NULL,
+  fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  emitido BOOLEAN NOT NULL,
+  cancelado BOOLEAN NOT NULL,
+  observacion TEXT(1000) NOT NULL
+);
+
+ALTER TABLE permisos_bebidas
+  MODIFY id INT(11) NOT NULL AUTO_INCREMENT;
+```
+
+*Source: database/database.sql:8-31*
+
+<Accordion title="Field Descriptions">
+  | Field | Type | Description |
+  |-------|------|-------------|
+  | `id` | INT(11) | Primary key, auto-increment |
+  | `codigo_permiso` | VARCHAR(200) | Unique permit code |
+  | `habilitacion` | DATE | Permit start date |
+  | `vencimiento` | DATE | Permit expiration date |
+  | `horario` | VARCHAR(30) | Operating hours |
+  | `dat_confirmacion` | BOOLEAN | Data confirmation flag |
+  | `requisitor_nombre` | VARCHAR(50) | Applicant first name |
+  | `requisitor_apellido` | VARCHAR(50) | Applicant last name |
+  | `requisitor_doc` | VARCHAR(15) | Applicant ID document |
+  | `requisitor_tlf` | VARCHAR(50) | Applicant phone |
+  | `requisitor_habitacion` | TEXT(1000) | Applicant address |
+  | `sector_permisado` | TEXT(1000) | Permitted sector/location |
+  | `comprobante_de_pago` | VARCHAR(2500) | Payment receipt file path |
+  | `permiso_autorizado` | VARCHAR(2500) | Authorized permit file path |
+  | `creador` | VARCHAR(200) | User who created the record |
+  | `editor` | VARCHAR(200) | User who last edited the record |
+  | `fecha_creacion` | TIMESTAMP | Record creation timestamp |
+  | `emitido` | BOOLEAN | Permit issued status |
+  | `cancelado` | BOOLEAN | Permit cancelled status |
+  | `observacion` | TEXT(1000) | Additional observations/notes |
+</Accordion>
+
+## Table: permisos_eventos
+
+Stores permits for special events.
+
+```sql
+CREATE TABLE permisos_eventos(
+  id INT(11) NOT NULL PRIMARY KEY,
+  codigo_permiso VARCHAR(200) NOT NULL,
+  habilitacion DATE NOT NULL,
+  vencimiento DATE NOT NULL,
+  horario VARCHAR(30) NOT NULL,
+  dat_confirmacion BOOLEAN NOT NULL,
+  requisitor_nombre VARCHAR(50) NOT NULL,
+  requisitor_apellido VARCHAR(50) NOT NULL,
+  requisitor_doc VARCHAR(15) NOT NULL,
+  requisitor_tlf VARCHAR(50) NOT NULL,
+  requisitor_habitacion TEXT(1000) NOT NULL,
+  sector_permisado TEXT(1000) NOT NULL,
+  comprobante_de_pago VARCHAR(2500) NOT NULL,
+  nombre_evento VARCHAR(76) NOT NULL,
+  tipo_evento VARCHAR(100) NOT NULL,
+  servicio_comida BOOLEAN NOT NULL,
+  servicio_bebidas BOOLEAN NOT NULL,
+  servicio_confiteria BOOLEAN NOT NULL,
+  servicio_articulos_varios BOOLEAN NOT NULL,
+  servicio_heladeria BOOLEAN NOT NULL,
+  servicio_otros VARCHAR(100) NOT NULL,
+  permiso_autorizado VARCHAR(2500) NOT NULL,
+  creador VARCHAR(200) NOT NULL,
+  editor VARCHAR(200) NOT NULL,
+  fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  emitido BOOLEAN NOT NULL,
+  cancelado BOOLEAN NOT NULL,
+  observacion TEXT(1000) NOT NULL
+);
+
+ALTER TABLE permisos_eventos
+  MODIFY id INT(11) NOT NULL AUTO_INCREMENT;
+```
+
+*Source: database/database.sql:34-66*
+
+<Accordion title="Field Descriptions">
+  Includes all base permit fields plus event-specific fields:
+  
+  | Field | Type | Description |
+  |-------|------|-------------|
+  | `nombre_evento` | VARCHAR(76) | Event name |
+  | `tipo_evento` | VARCHAR(100) | Event type |
+  | `servicio_comida` | BOOLEAN | Food service provided |
+  | `servicio_bebidas` | BOOLEAN | Beverage service provided |
+  | `servicio_confiteria` | BOOLEAN | Confectionery service |
+  | `servicio_articulos_varios` | BOOLEAN | Miscellaneous items service |
+  | `servicio_heladeria` | BOOLEAN | Ice cream service |
+  | `servicio_otros` | VARCHAR(100) | Other services description |
+</Accordion>
+
+## Table: permisos_publicidad
+
+Stores permits for advertising and propaganda activities.
+
+```sql
+CREATE TABLE permisos_publicidad(
+  id INT(11) NOT NULL PRIMARY KEY,
+  codigo_permiso VARCHAR(200) NOT NULL,
+  habilitacion DATE NOT NULL,
+  vencimiento DATE NOT NULL,
+  horario VARCHAR(30) NOT NULL,
+  dat_confirmacion BOOLEAN NOT NULL,
+  requisitor_nombre VARCHAR(50) NOT NULL,
+  requisitor_apellido VARCHAR(50) NOT NULL,
+  requisitor_doc VARCHAR(15) NOT NULL,
+  requisitor_tlf VARCHAR(50) NOT NULL,
+  requisitor_habitacion TEXT(1000) NOT NULL,
+  sector_permisado TEXT(1000) NOT NULL,
+  publicidad_volantes INT(11) NOT NULL,
+  publicidad_afiches INT(11) NOT NULL,
+  publicidad_pendones INT(11) NOT NULL,
+  publicidad_habladores INT(11) NOT NULL,
+  publicidad_stands INT(11) NOT NULL,
+  publicidad_calcomanias INT(11) NOT NULL,
+  publicidad_banderolas INT(11) NOT NULL,
+  publicidad_otros INT(11) NOT NULL,
+  publicidad_otros_descripcion VARCHAR(100) NOT NULL,
+  comentarios TEXT(1000) NOT NULL,
+  comprobante_de_pago VARCHAR(2500) NOT NULL,
+  permiso_autorizado VARCHAR(2500) NOT NULL,
+  creador VARCHAR(200) NOT NULL,
+  editor VARCHAR(200) NOT NULL,
+  fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  emitido BOOLEAN NOT NULL,
+  cancelado BOOLEAN NOT NULL,
+  observacion TEXT(1000) NOT NULL
+);
+
+ALTER TABLE permisos_publicidad
+  MODIFY id INT(11) NOT NULL AUTO_INCREMENT;
+```
+
+*Source: database/database.sql:69-103*
+
+<Accordion title="Field Descriptions">
+  Includes all base permit fields plus advertising-specific quantity fields:
+  
+  | Field | Type | Description |
+  |-------|------|-------------|
+  | `publicidad_volantes` | INT(11) | Number of flyers |
+  | `publicidad_afiches` | INT(11) | Number of posters |
+  | `publicidad_pendones` | INT(11) | Number of banners |
+  | `publicidad_habladores` | INT(11) | Number of shelf talkers |
+  | `publicidad_stands` | INT(11) | Number of stands |
+  | `publicidad_calcomanias` | INT(11) | Number of stickers |
+  | `publicidad_banderolas` | INT(11) | Number of street banners |
+  | `publicidad_otros` | INT(11) | Number of other items |
+  | `publicidad_otros_descripcion` | VARCHAR(100) | Description of other items |
+  | `comentarios` | TEXT(1000) | Additional comments |
+</Accordion>
+
+## Table: usuarios
+
+Stores system user accounts and authentication data.
+
+```sql
+CREATE TABLE usuarios(
+  idDocument VARCHAR(50) NOT NULL PRIMARY KEY,
+  nombre VARCHAR(50) NOT NULL,
+  apellido VARCHAR(50) NOT NULL,
+  cargo VARCHAR(50) NOT NULL,
+  tipo_usuario VARCHAR(50) NOT NULL,
+  username VARCHAR(1000) NOT NULL,
+  password VARCHAR(2500) NOT NULL
+);
+```
+
+*Source: database/database.sql:106-115*
+
+<Accordion title="Field Descriptions">
+  | Field | Type | Description |
+  |-------|------|-------------|
+  | `idDocument` | VARCHAR(50) | Primary key - ID document number |
+  | `nombre` | VARCHAR(50) | First name |
+  | `apellido` | VARCHAR(50) | Last name |
+  | `cargo` | VARCHAR(50) | Position/role title |
+  | `tipo_usuario` | VARCHAR(50) | User type (Administrador, Desarrollador, etc.) |
+  | `username` | VARCHAR(1000) | Login username |
+  | `password` | VARCHAR(2500) | Hashed password (bcrypt) |
+</Accordion>
+
+## Common Permit Fields
+
+All three permit tables (`permisos_bebidas`, `permisos_eventos`, `permisos_publicidad`) share these base fields:
+
+<AccordionGroup>
+  <Accordion title="Identification">
+    - `id`: Auto-increment primary key
+    - `codigo_permiso`: Unique permit identifier
+  </Accordion>
+  
+  <Accordion title="Validity Period">
+    - `habilitacion`: Start date
+    - `vencimiento`: Expiration date
+    - `horario`: Operating hours
+  </Accordion>
+  
+  <Accordion title="Applicant Information">
+    - `requisitor_nombre`: First name
+    - `requisitor_apellido`: Last name
+    - `requisitor_doc`: ID document
+    - `requisitor_tlf`: Phone number
+    - `requisitor_habitacion`: Address
+  </Accordion>
+  
+  <Accordion title="Location & Files">
+    - `sector_permisado`: Permitted location
+    - `comprobante_de_pago`: Payment receipt file path
+    - `permiso_autorizado`: Authorized permit PDF path
+  </Accordion>
+  
+  <Accordion title="Audit Trail">
+    - `creador`: User who created the permit
+    - `editor`: User who last modified the permit
+    - `fecha_creacion`: Creation timestamp
+  </Accordion>
+  
+  <Accordion title="Status Flags">
+    - `dat_confirmacion`: Data confirmed
+    - `emitido`: Permit issued
+    - `cancelado`: Permit cancelled
+    - `observacion`: Notes/observations
+  </Accordion>
+</AccordionGroup>
+
+## Data Relationships
+
+<Steps>
+  <Step title="User Authentication">
+    Users in `usuarios` table authenticate and receive session
+  </Step>
+  
+  <Step title="Permit Creation">
+    Authenticated user creates permit in one of three permit tables
+  </Step>
+  
+  <Step title="Audit Tracking">
+    `creador` and `editor` fields reference the username from `usuarios`
+  </Step>
+  
+  <Step title="File References">
+    `comprobante_de_pago` and `permiso_autorizado` store file paths to uploaded/generated documents
+  </Step>
+</Steps>
+
+## Data Flow Example
+
+```mermaid
+graph LR
+    A[Client Submits Form] --> B[Route Handler]
+    B --> C[Validate Data]
+    C --> D[Save File]
+    D --> E[INSERT into permit table]
+    E --> F[Generate PDF]
+    F --> G[UPDATE permiso_autorizado]
+    G --> H[Emit Socket.io Event]
+```
+
+## Primary Keys & Auto-Increment
+
+All permit tables use auto-incrementing integer IDs:
+
+```sql
+ALTER TABLE permisos_bebidas MODIFY id INT(11) NOT NULL AUTO_INCREMENT;
+ALTER TABLE permisos_eventos MODIFY id INT(11) NOT NULL AUTO_INCREMENT;
+ALTER TABLE permisos_publicidad MODIFY id INT(11) NOT NULL AUTO_INCREMENT;
+```
+
+The `usuarios` table uses the document ID as a natural primary key:
+
+```sql
+idDocument VARCHAR(50) NOT NULL PRIMARY KEY
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="System Architecture" icon="sitemap" href="/technical/architecture">
+    Overall system design and technology stack
+  </Card>
+  
+  <Card title="WebSocket Events" icon="bolt" href="/technical/websockets">
+    Real-time updates when database changes occur
+  </Card>
+</CardGroup>

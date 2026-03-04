@@ -1,0 +1,185 @@
+---
+title: Authentication
+description: Learn how to authenticate users and manage sessions in the Sistema de Permisos Municipales
+---
+
+## Overview
+
+The Sistema de Permisos Municipales uses session-based authentication with bcrypt password hashing to secure user access. All users must log in with their credentials before accessing the system.
+
+## Login process
+
+Users authenticate with a username (indicador) and password. The system validates credentials and creates a session.
+
+### Login endpoint
+
+<ParamField path="indicador" type="string" required>
+  User's username (generated from name and surname, e.g., MALAVEN)
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  User's password (minimum 6 characters, maximum 30 characters)
+</ParamField>
+
+```javascript
+POST /usuarios/login
+Content-Type: application/x-www-form-urlencoded
+
+indicador=MALAVEN&password=your_password
+```
+
+### Validation rules
+
+The system enforces the following validation rules during login:
+
+<Accordion title="Username validation">
+- Must be at least 3 characters long
+- Must not exceed 51 characters
+- Cannot contain numbers
+- Automatically converted to uppercase
+</Accordion>
+
+<Accordion title="Password validation">
+- Must be at least 6 characters
+- Must not exceed 30 characters
+- Stored as bcrypt hash with 10 salt rounds
+</Accordion>
+
+### Successful login
+
+On successful authentication, the system creates a session with the following user information:
+
+```javascript
+req.session.usuario = {
+  indicador: result[0].username,
+  nombre: result[0].nombre,
+  apellido: result[0].apellido,
+  cargo: result[0].cargo,
+  tipo_usuario: result[0].tipo_usuario
+};
+```
+
+<Note>
+The session persists across requests until the user logs out or the session expires.
+</Note>
+
+## Password management
+
+### Changing your password
+
+Users can change their password through the password change interface:
+
+<Steps>
+  <Step title="Access the password change page">
+    Navigate to `/password` while logged in.
+  </Step>
+  
+  <Step title="Enter required information">
+    Provide:
+    - Current password
+    - New password
+    - Password confirmation
+    
+    <Warning>
+    The new password must be different from your current password.
+    </Warning>
+  </Step>
+  
+  <Step title="Submit the form">
+    The system validates your current password and ensures the new password meets requirements.
+  </Step>
+  
+  <Step title="Log in again">
+    After a successful password change, you'll be logged out and must log in with your new password.
+  </Step>
+</Steps>
+
+### Password change endpoint
+
+```javascript
+POST /password
+Content-Type: application/x-www-form-urlencoded
+
+password=current_password&pass1=new_password&pass2=new_password
+```
+
+## Session management
+
+### Session configuration
+
+Sessions are configured with the following settings:
+
+```javascript
+app.use(session({
+  key: 'permisos_municipales_pass',
+  secret: 'permisos_municipales',
+  resave: false,
+  saveUninitialized: false
+}));
+```
+
+### Logging out
+
+To end a session, users can log out:
+
+```javascript
+GET /close
+```
+
+This deletes the session and redirects to the login page.
+
+## Protected routes
+
+All routes in the system require authentication. The system checks for `req.session.usuario` before allowing access:
+
+```javascript
+if('usuario' in req.session){
+  // Allow access
+}else{
+  res.redirect('http://'+req.headers.host);
+}
+```
+
+<Info>
+Some routes also require specific user roles (Administrador, Desarrollador) for access.
+</Info>
+
+## Security features
+
+<CardGroup cols={2}>
+  <Card title="Password hashing" icon="lock">
+    All passwords are hashed using bcrypt with 10 salt rounds before storage.
+  </Card>
+  <Card title="Session security" icon="shield">
+    Sessions use a secret key and don't save uninitialized sessions.
+  </Card>
+  <Card title="Validation" icon="check">
+    Strict validation rules prevent weak passwords and invalid usernames.
+  </Card>
+  <Card title="Automatic logout" icon="right-from-bracket">
+    Password changes automatically log out the user for security.
+  </Card>
+</CardGroup>
+
+## Error handling
+
+The system provides specific error messages for common authentication issues:
+
+| Error | Meaning |
+|-------|--------|
+| ¡Debe introducir su indicador de usuario! | Username field is empty |
+| ¡El indicador debe contener, por lo menos, 3 letras! | Username too short |
+| ¡Usuario no encontrado! | Username doesn't exist |
+| ¡Contraseña incorrecta! | Password doesn't match |
+| ¡La contraseña debe contener, por lo menos, 6 caracteres! | Password too short |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="User management" icon="users" href="/guides/user-management">
+    Learn how to create and manage user accounts
+  </Card>
+  <Card title="Roles and permissions" icon="user-shield" href="/admin/roles-permissions">
+    Understand user roles and access control
+  </Card>
+</CardGroup>

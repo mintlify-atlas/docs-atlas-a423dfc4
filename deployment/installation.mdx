@@ -1,0 +1,214 @@
+---
+title: 'Installation'
+description: 'Step-by-step guide to install and set up the Municipal Permits System'
+---
+
+## Prerequisites
+
+Before installing the Municipal Permits System, ensure you have the following installed:
+
+- **Node.js** (v12 or higher recommended)
+- **MySQL** (v5.7 or higher)
+- **npm** (comes with Node.js)
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone or Extract the Source Code">
+    Extract the application source code to your desired location:
+    
+    ```bash
+    cd /path/to/your/projects
+    ```
+  </Step>
+
+  <Step title="Set Up the Database">
+    Create the MySQL database and tables using the provided SQL script:
+    
+    ```bash
+    mysql -u root -p < database/database.sql
+    ```
+    
+    Or manually execute the SQL commands:
+    
+    ```sql
+    CREATE DATABASE asuntos_publicos;
+    USE asuntos_publicos;
+    ```
+    
+    The database includes the following tables:
+    - `permisos_bebidas` - Alcoholic beverage permits
+    - `permisos_eventos` - Special event permits
+    - `permisos_publicidad` - Advertising and propaganda permits
+    - `usuarios` - System users
+    
+    <Info>
+      The complete database schema is located in `database/database.sql`
+    </Info>
+  </Step>
+
+  <Step title="Install Dependencies">
+    Navigate to the project directory and install required npm packages:
+    
+    ```bash
+    npm install
+    ```
+    
+    This will install the following dependencies:
+    
+    <CodeGroup>
+    ```json Production Dependencies
+    {
+      "express": "^4.17.3",
+      "mysql": "^2.18.1",
+      "bcryptjs": "^2.4.3",
+      "ejs": "^3.1.6",
+      "express-session": "^1.17.2",
+      "socket.io": "^4.4.1",
+      "multer": "^1.4.4",
+      "html-pdf": "^3.0.1",
+      "phantomjs": "^2.1.7"
+    }
+    ```
+    
+    ```json Dev Dependencies
+    {
+      "nodemon": "^2.0.15"
+    }
+    ```
+    </CodeGroup>
+    
+    ### Key Dependencies
+    
+    - **express** - Web application framework
+    - **mysql** - MySQL database driver
+    - **bcryptjs** - Password hashing
+    - **ejs** - Template engine for views
+    - **express-session** - Session management
+    - **socket.io** - Real-time bidirectional communication
+    - **multer** - File upload handling
+    - **html-pdf** - PDF generation from HTML
+    - **phantomjs** - Headless browser for PDF rendering
+  </Step>
+
+  <Step title="Create Required Directories">
+    Create the directory structure for file uploads:
+    
+    ```bash
+    mkdir -p src/public/server-files/temps
+    mkdir -p src/public/server-files/asuntos_publicos/permisos_municipales/bebidas
+    mkdir -p src/public/server-files/asuntos_publicos/permisos_municipales/eventos
+    mkdir -p src/public/server-files/asuntos_publicos/permisos_municipales/publicidad
+    ```
+    
+    These directories are used for:
+    - `temps/` - Temporary file storage during upload
+    - `bebidas/` - Alcoholic beverage permit documents
+    - `eventos/` - Event permit documents
+    - `publicidad/` - Advertising permit documents
+  </Step>
+
+  <Step title="Configure Database Connection">
+    Update the database credentials in `src/keys.js`:
+    
+    ```javascript src/keys.js
+    module.exports = {
+      host: 'localhost',
+      database: 'asuntos_publicos',
+      user: 'your_mysql_user',
+      password: 'your_mysql_password',
+      multipleStatements: true
+    };
+    ```
+    
+    <Warning>
+      Never commit database credentials to version control. Use environment variables in production.
+    </Warning>
+  </Step>
+
+  <Step title="Start the Application">
+    For development with auto-reload:
+    
+    ```bash
+    npm run dev
+    ```
+    
+    For production:
+    
+    ```bash
+    npm start
+    ```
+    
+    The server will start on port 4000 by default.
+  </Step>
+
+  <Step title="Access the Application">
+    Open your browser and navigate to:
+    
+    ```
+    http://localhost:4000
+    ```
+  </Step>
+</Steps>
+
+## Initial Admin User
+
+<Info>
+  The application automatically creates a default administrator account on first startup.
+</Info>
+
+The admin user is created by `src/lib/createAdmin.js` with the following credentials:
+
+- **Username**: `ADMIN`
+- **Password**: `ADMINS`
+- **Role**: Desarrollador (Developer)
+
+<Warning>
+  Change the default admin password immediately after first login for security reasons.
+</Warning>
+
+## Verify Installation
+
+To verify the installation was successful:
+
+1. Check the console for the message: `¡Servidor Iniciado Correctamente!`
+2. Verify database connection: `¡Base de Datos Conectada!`
+3. Log in with the default admin credentials
+4. Navigate to the Users section to create additional users
+
+## Troubleshooting
+
+### Database Connection Issues
+
+If you see `¡La conexión con la Base de Datos ha sido rechazada!`:
+
+- Verify MySQL is running
+- Check database credentials in `src/keys.js`
+- Ensure the database `asuntos_publicos` exists
+
+### Port Already in Use
+
+If port 4000 is already in use, modify the port in `src/index.js:17`:
+
+```javascript
+app.set('port', 4000); // Change to your preferred port
+```
+
+### File Upload Errors
+
+Ensure all required directories exist and have proper write permissions:
+
+```bash
+chmod -R 755 src/public/server-files/
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/deployment/configuration">
+    Configure server settings and environment variables
+  </Card>
+  <Card title="Security" icon="shield" href="/deployment/security">
+    Learn about security best practices
+  </Card>
+</CardGroup>

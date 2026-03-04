@@ -1,0 +1,295 @@
+---
+title: 'System Architecture'
+description: 'Technical overview of the permits management system architecture'
+---
+
+## Overview
+
+The permits management system is a Node.js web application built for managing municipal permits (alcohol sales, special events, and advertising). The system uses a traditional MVC architecture with server-side rendering and real-time updates.
+
+## Technology Stack
+
+### Core Dependencies
+
+```json
+"dependencies": {
+  "express": "^4.17.3",
+  "mysql": "^2.18.1",
+  "ejs": "^3.1.6",
+  "socket.io": "^4.4.1",
+  "bcryptjs": "^2.4.3",
+  "multer": "^1.4.4",
+  "html-pdf": "^3.0.1",
+  "phantomjs": "^2.1.7",
+  "express-session": "^1.17.2"
+}
+```
+
+<Accordion title="Technology Details">
+  - **Express.js**: Web framework for routing and middleware
+  - **MySQL**: Relational database (asuntos_publicos)
+  - **EJS**: Server-side templating engine
+  - **Socket.io**: Real-time bidirectional communication
+  - **bcryptjs**: Password hashing and authentication
+  - **multer**: Multipart form data handling (file uploads)
+  - **html-pdf + phantomjs**: PDF generation from HTML templates
+  - **express-session**: Session-based authentication
+</Accordion>
+
+## Directory Structure
+
+```
+src/
+├── index.js              # Server entry point, Socket.io setup
+├── database.js           # MySQL connection pool
+├── globalFunctions.js    # Shared utility functions
+├── keys.js              # Configuration keys
+├── routes/              # Route handlers
+│   ├── authentications.js
+│   ├── bebidas.js       # Alcohol permits
+│   ├── eventos.js       # Event permits
+│   ├── publicidad.js    # Advertising permits
+│   └── usuarios.js      # User management
+├── middlewares/         # Express middlewares
+│   ├── verifySession.js # Session validation
+│   └── verifyRoles.js   # Role-based access control
+├── views/              # EJS templates
+├── public/             # Static assets (JS, CSS, images)
+│   └── server-files/   # Uploaded files and generated PDFs
+└── lib/
+    └── createAdmin.js  # Admin initialization
+```
+
+## Server Initialization
+
+The application starts by initializing Express and configuring middleware:
+
+```javascript
+const express = require('express'),
+  session = require('express-session'),
+  mysql = require('mysql'),
+  pool = require('./database.js'),
+  path = require('path');
+
+const app = express();
+require('./lib/createAdmin.js')(pool);
+
+// Settings
+app.set('port', 4000);
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+
+// Middlewares
+app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
+app.use(session({
+  key: 'permisos_municipales_pass',
+  secret: 'permisos_municipales',
+  resave: false,
+  saveUninitialized: false
+}));
+
+// Routes
+app.use(require('./routes/authentications.js'));
+app.use('/venta_de_bebidas', require('./routes/bebidas.js'));
+app.use('/eventos_especiales', require('./routes/eventos.js'));
+app.use('/publicidad_y_propaganda', require('./routes/publicidad.js'));
+app.use('/usuarios', require('./routes/usuarios.js'));
+
+// Static files
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Start server
+const server = app.listen(app.get('port'), () => {
+  console.log('¡Servidor Iniciado Correctamente!');
+});
+```
+
+*Source: src/index.js:1-80*
+
+## Request Flow
+
+The application follows a standard middleware-based request pipeline:
+
+<Steps>
+  <Step title="Client Request">
+    User sends HTTP request to Express server
+  </Step>
+  
+  <Step title="Session Middleware">
+    express-session validates and loads session data
+  </Step>
+  
+  <Step title="Authentication Check">
+    verifySession middleware ensures user is logged in
+    
+    ```javascript
+    module.exports = function(req, res, next) {
+      if (!req.session.usuario) {
+        return res.status(401, '¡No ha iniciado sessión!');
+      }
+      return next();
+    }
+    ```
+    *Source: src/middlewares/verifySession.js*
+  </Step>
+  
+  <Step title="Authorization Check">
+    verifyRoles middleware checks user permissions
+    
+    ```javascript
+    module.exports = function verifyRoles(...roles) {
+      return (req, res, next) => {
+        if (!roles.some(role => role === req.session.usuario.tipo_usuario)) {
+          return res.status(403).json({
+            message: '¡Usted no tiene los permisos necesarios para realizar ésta operación!'
+          });
+        }
+        return next();
+      }
+    }
+    ```
+    *Source: src/middlewares/verifyRoles.js*
+  </Step>
+  
+  <Step title="Route Handler">
+    Route controller processes request, queries database, and prepares response
+  </Step>
+  
+  <Step title="Database Query">
+    MySQL pool executes query against asuntos_publicos database
+  </Step>
+  
+  <Step title="Response">
+    Server renders EJS template or returns JSON response
+  </Step>
+  
+  <Step title="Real-time Update">
+    Socket.io broadcasts changes to all connected clients (if applicable)
+  </Step>
+</Steps>
+
+## File Upload Handling
+
+The system uses **multer** for processing file uploads with a two-stage approach:
+
+### 1. Temporary Storage
+
+Files are initially saved to a temporary directory:
+
+```javascript
+const storageProyect = multer.diskStorage({
+  destination: path.join(__dirname, '../public/server-files/temps/'),
+  filename: (req, file, funcion) => {
+    if ('usuario' in req.session) {
+      funcion(null, 
+        file.fieldname + '_de_pago_' + Date.now() + 
+        file.originalname.substr(file.originalname.lastIndexOf('.'), 
+                                 file.originalname.length - 1)
+      );
+    }
+  }
+});
+
+const uploadProyect = multer({
+  storage: storageProyect
+}).single('comprobante');
+```
+
+*Source: src/routes/bebidas.js:16-37*
+
+### 2. File Movement
+
+After validation, files are moved from temps/ to their final location in the appropriate permit directory.
+
+<Accordion title="File Upload Flow">
+  1. Client submits multipart/form-data with file
+  2. Multer middleware intercepts request
+  3. File saved to `/public/server-files/temps/` with timestamped name
+  4. Route handler validates file and request data
+  5. File moved to final destination (e.g., `/server-files/asuntos_publicos/permisos_municipales/bebidas/`)
+  6. Database updated with file path reference
+</Accordion>
+
+## PDF Generation Pipeline
+
+The system generates PDF permits using the **html-pdf** library with **phantomjs** as the rendering engine:
+
+<Steps>
+  <Step title="Template Rendering">
+    EJS template is populated with permit data
+  </Step>
+  
+  <Step title="HTML Generation">
+    Rendered template produces complete HTML with inline CSS
+  </Step>
+  
+  <Step title="PDF Conversion">
+    html-pdf uses phantomjs to convert HTML to PDF
+    
+    ```javascript
+    const pdf = require('html-pdf');
+    
+    pdf.create(htmlContent, options).toFile(outputPath, (err, res) => {
+      if (err) return console.log(err);
+      // PDF saved successfully
+    });
+    ```
+  </Step>
+  
+  <Step title="File Storage">
+    Generated PDF saved to server-files directory
+  </Step>
+  
+  <Step title="Database Update">
+    File path stored in permiso_autorizado field
+  </Step>
+</Steps>
+
+## Database Connection
+
+The application uses a MySQL connection pool for efficient database access:
+
+```javascript
+const sessionOptions = {
+  host: 'localhost',
+  port: 4000,
+  user: 'root',
+  password: '',
+  database: 'asuntos_publicos'
+};
+```
+
+*Source: src/index.js:24-30*
+
+## Security Features
+
+<CardGroup cols={2}>
+  <Card title="Session Management" icon="key">
+    express-session with server-side storage
+  </Card>
+  
+  <Card title="Password Hashing" icon="lock">
+    bcryptjs for secure password storage
+  </Card>
+  
+  <Card title="Role-Based Access" icon="shield">
+    verifyRoles middleware for authorization
+  </Card>
+  
+  <Card title="Session Validation" icon="user-check">
+    verifySession guards protected routes
+  </Card>
+</CardGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Database Schema" icon="database" href="/technical/database-schema">
+    Complete database structure and relationships
+  </Card>
+  
+  <Card title="WebSocket Integration" icon="bolt" href="/technical/websockets">
+    Real-time communication with Socket.io
+  </Card>
+</CardGroup>

@@ -1,0 +1,572 @@
+---
+title: Special Event Permits
+description: Complete guide for managing permits for special events and their services
+---
+
+## Overview
+
+Special event permits are required for organizing events in public or municipal spaces. These permits track the event type, authorized services (food, beverages, confectionery, etc.), and event-specific details.
+
+## Event Types
+
+The system supports the following event classifications:
+
+<CardGroup cols={2}>
+  <Card title="Deportivo" icon="futbol">
+    Sports events and competitions
+  </Card>
+  <Card title="Cultural" icon="palette">
+    Cultural activities and exhibitions
+  </Card>
+  <Card title="Benéfico" icon="hand-holding-heart">
+    Charitable and fundraising events
+  </Card>
+  <Card title="Educativo" icon="graduation-cap">
+    Educational events and workshops
+  </Card>
+  <Card title="Religioso" icon="church">
+    Religious ceremonies and gatherings
+  </Card>
+  <Card title="Otros" icon="calendar-days">
+    Other event types (custom description)
+  </Card>
+</CardGroup>
+
+## Service Types
+
+Events can be authorized to offer the following services:
+
+<CardGroup cols={3}>
+  <Card title="Comida" icon="utensils">
+    Food service
+  </Card>
+  <Card title="Bebidas" icon="glass-water">
+    Beverage service
+  </Card>
+  <Card title="Confitería" icon="candy-cane">
+    Confectionery and sweets
+  </Card>
+  <Card title="Artículos Varios" icon="box">
+    Miscellaneous items sales
+  </Card>
+  <Card title="Heladería" icon="ice-cream">
+    Ice cream service
+  </Card>
+  <Card title="Otros" icon="ellipsis">
+    Other services (requires description)
+  </Card>
+</CardGroup>
+
+## Required Fields
+
+### Event Information
+
+<ParamField path="nombre_evento" type="string" required>
+  Name of the event
+</ParamField>
+
+<ParamField path="tipo_evento" type="string" required>
+  Event type: "Deportivo", "Cultural", "Benéfico", "Educativo", "Religioso", or custom type
+</ParamField>
+
+### Applicant Information
+
+<ParamField path="nombre" type="string" required>
+  Organizer's first name
+</ParamField>
+
+<ParamField path="apellido" type="string" required>
+  Organizer's last name
+</ParamField>
+
+<ParamField path="idDocument" type="string" required>
+  Organizer's identification document number
+</ParamField>
+
+<ParamField path="tlf" type="string" required>
+  Organizer's phone number
+</ParamField>
+
+<ParamField path="habitacion" type="string" required>
+  Organizer's address or location
+</ParamField>
+
+### Permit Details
+
+<ParamField path="habilitacion" type="date" required>
+  Event start date
+</ParamField>
+
+<ParamField path="vencimiento" type="date" required>
+  Event end date or permit expiration
+</ParamField>
+
+<ParamField path="horario" type="string" required>
+  Authorized event schedule (e.g., "9:00 AM - 6:00 PM")
+</ParamField>
+
+<ParamField path="sector" type="string" required>
+  Location or sector where the event will take place
+</ParamField>
+
+### Authorized Services
+
+<ParamField path="servicio_comida" type="boolean">
+  Food service authorized (true/false or "true"/"false")
+</ParamField>
+
+<ParamField path="servicio_bebidas" type="boolean">
+  Beverage service authorized (true/false or "true"/"false")
+</ParamField>
+
+<ParamField path="servicio_confiteria" type="boolean">
+  Confectionery service authorized (true/false or "true"/"false")
+</ParamField>
+
+<ParamField path="servicio_varios" type="boolean">
+  Miscellaneous items sales authorized (true/false or "true"/"false")
+</ParamField>
+
+<ParamField path="servicio_heladeria" type="boolean">
+  Ice cream service authorized (true/false or "true"/"false")
+</ParamField>
+
+<ParamField path="servicio_otros" type="string">
+  Description of other authorized services
+</ParamField>
+
+### Additional Fields
+
+<ParamField path="comprobante" type="file">
+  Payment receipt file upload (optional)
+</ParamField>
+
+<ParamField path="today" type="string" required>
+  Current date in YYYY-MM-DD format for validation
+</ParamField>
+
+## Creating a Permit
+
+To create a new special event permit, send a POST request with multipart form data:
+
+```bash
+POST /eventos_especiales/add
+Content-Type: multipart/form-data
+```
+
+### Request Example
+
+```javascript
+const formData = new FormData();
+
+// Event information
+formData.append('nombre_evento', 'Festival de Primavera 2026');
+formData.append('tipo_evento', 'Cultural');
+
+// Basic information
+formData.append('habilitacion', '2026-04-15');
+formData.append('vencimiento', '2026-04-17');
+formData.append('horario', '9:00 AM - 10:00 PM');
+formData.append('nombre', 'Carlos');
+formData.append('apellido', 'Rodríguez');
+formData.append('idDocument', 'V-34567890');
+formData.append('tlf', '0412-3456789');
+formData.append('habitacion', 'Calle 5 #789');
+formData.append('sector', 'Plaza Central');
+
+// Authorized services (boolean values converted to 1 or 0)
+formData.append('servicio_comida', 'true');
+formData.append('servicio_bebidas', 'true');
+formData.append('servicio_confiteria', 'true');
+formData.append('servicio_varios', 'false');
+formData.append('servicio_heladeria', 'true');
+formData.append('servicio_otros', 'Artesanías locales');
+
+// Additional
+formData.append('comprobante', fileInput.files[0]); // Optional
+formData.append('today', '2026-03-04');
+```
+
+<Note>
+  Boolean service fields are automatically converted using the `converToBooleanService` function:
+  - `true` or `"true"` → 1 (authorized)
+  - Any other value → 0 (not authorized)
+</Note>
+
+### Response
+
+```json
+{
+  "success": "¡Se ha registrado correctamente el permiso!",
+  "permiso": "2026-001"
+}
+```
+
+## Editing a Permit
+
+Update an existing event permit:
+
+```bash
+POST /eventos_especiales/edit
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+All fields from creation plus:
+
+<ParamField path="permiso" type="integer" required>
+  ID of the permit to edit
+</ParamField>
+
+<ParamField path="needPermiso" type="string">
+  Set to "true" if updating the payment receipt, "false" otherwise
+</ParamField>
+
+### Example
+
+```javascript
+const formData = new FormData();
+formData.append('permiso', '9');
+formData.append('nombre_evento', 'Festival de Primavera 2026 - Extendido');
+formData.append('tipo_evento', 'Cultural');
+formData.append('habilitacion', '2026-04-15');
+formData.append('vencimiento', '2026-04-18'); // Extended
+formData.append('horario', '8:00 AM - 11:00 PM'); // Updated
+formData.append('nombre', 'Carlos');
+formData.append('apellido', 'Rodríguez');
+formData.append('idDocument', 'V-34567890');
+formData.append('tlf', '0412-3456789');
+formData.append('habitacion', 'Calle 5 #789');
+formData.append('sector', 'Plaza Central');
+formData.append('servicio_comida', 'true');
+formData.append('servicio_bebidas', 'true');
+formData.append('servicio_confiteria', 'true');
+formData.append('servicio_varios', 'true'); // Added
+formData.append('servicio_heladeria', 'true');
+formData.append('servicio_otros', 'Artesanías locales y souvenirs');
+formData.append('needPermiso', 'false');
+formData.append('today', '2026-03-04');
+```
+
+### Response
+
+```json
+{
+  "success": "¡Se ha editado correctamente el permiso!",
+  "permiso": 9
+}
+```
+
+## Approving a Permit
+
+Approve a permit by uploading the authorized permit document:
+
+```bash
+POST /eventos_especiales/aprobate
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="permiso" type="integer" required>
+  ID of the permit to approve
+</ParamField>
+
+<ParamField path="permiso_aprobado" type="file" required>
+  Authorized permit document file
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": "¡Se ha aprobado correctamente el permiso!",
+  "permiso": 9
+}
+```
+
+## Canceling a Permit
+
+Cancel a permit with an observation note:
+
+```bash
+POST /eventos_especiales/cancel
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="permiso" type="integer" required>
+  ID of the permit to cancel
+</ParamField>
+
+<ParamField path="observacion" type="string" required>
+  Reason for cancellation
+</ParamField>
+
+### Example
+
+```javascript
+const formData = new FormData();
+formData.append('permiso', '9');
+formData.append('observacion', 'Evento pospuesto por condiciones climáticas');
+```
+
+### Response
+
+```json
+{
+  "success": "¡Se ha cancelado la emisión del permiso correctamente!",
+  "permiso": 9
+}
+```
+
+## Searching and Filtering
+
+Search for event permits:
+
+```bash
+POST /eventos_especiales/search
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="busqueda" type="string">
+  Search term (searches across permit code, dates, organizer name, document, phone, sector)
+</ParamField>
+
+<ParamField path="estado" type="string" required>
+  Filter by status: "Todos" (all), "Emitido" (approved), or "No Emitido" (not approved)
+</ParamField>
+
+### Response
+
+Returns HTML template with search results:
+
+```json
+{
+  "plantilla": "<button class='item aproved' id='itemResult1'>...</button>..."
+}
+```
+
+## Getting Permit Details
+
+Retrieve details for a specific permit:
+
+```bash
+POST /eventos_especiales/get
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="id" type="integer" required>
+  Permit ID
+</ParamField>
+
+### Response
+
+```json
+{
+  "result": {
+    "id": 9,
+    "codigo_permiso": "2026-001",
+    "habilitacion": "2026-04-15",
+    "vencimiento": "2026-04-17",
+    "horario": "9:00 AM - 10:00 PM",
+    "dat_confirmacion": 1,
+    "requisitor_nombre": "Carlos",
+    "requisitor_apellido": "Rodríguez",
+    "requisitor_doc": "V-34567890",
+    "requisitor_tlf": "0412-3456789",
+    "requisitor_habitacion": "Calle 5 #789",
+    "sector_permisado": "Plaza Central",
+    "nombre_evento": "Festival de Primavera 2026",
+    "tipo_evento": "Cultural",
+    "servicio_comida": 1,
+    "servicio_bebidas": 1,
+    "servicio_confiteria": 1,
+    "servicio_articulos_varios": 0,
+    "servicio_heladeria": 1,
+    "servicio_otros": "Artesanías locales",
+    "comprobante_de_pago": "comprobante_de_pago_1234567890.pdf",
+    "permiso_autorizado": "permiso_autorizado1234567890.pdf",
+    "creador": "Admin User",
+    "editor": "Admin User",
+    "emitido": 1,
+    "cancelado": 0,
+    "observacion": ""
+  },
+  "usuario": { /* current session user */ }
+}
+```
+
+## PDF Generation
+
+Generate a PDF document for a specific permit:
+
+```bash
+GET /eventos_especiales/permiso/eventos-especiales_2026-001
+```
+
+The URL pattern is: `eventos-especiales_{codigo_permiso}`
+
+### Response
+
+Returns a PDF document with:
+- Content-Type: `application/pdf`
+- Event details with checkboxes for event type
+- Service authorizations marked with "x" for enabled services
+- Formatted using the template at `views/templates/permisos/eventos.html`
+
+### PDF Template Logic
+
+The PDF generation includes special handling:
+
+```javascript
+// Event type detection (case-insensitive, accent-removed)
+if (tipo_evento.toLowerCase() === 'deportivo') {
+  // Mark deportivo checkbox
+} else if (tipo_evento.toLowerCase() === 'cultural') {
+  // Mark cultural checkbox
+} // ... etc
+
+// Service validation
+if (servicio_comida === true || servicio_comida === 1) {
+  // Mark comidas checkbox with 'x'
+}
+```
+
+## Real-Time Updates with Socket.io
+
+The system supports real-time synchronization for event permits using Socket.io:
+
+### Socket Events
+
+<CodeGroup>
+```javascript Edit Event
+// Client emits when editing
+socket.emit('eventos:edit-permiso', {
+  permiso: permitId,
+  id: permitId
+});
+
+// Server broadcasts to other clients
+socket.on('eventos:edit-permiso', (data) => {
+  // Refresh permit data in UI
+});
+```
+
+```javascript Approve Event
+// Client emits when approving
+socket.emit('eventos:aprobate-permiso', {
+  permiso: permitId,
+  id: permitId
+});
+
+// Server broadcasts approval
+socket.on('eventos:aprobate-permiso', (data) => {
+  // Update UI to show approved status
+});
+```
+
+```javascript Cancel Event
+// Client emits when canceling
+socket.emit('eventos:cancel-permiso', {
+  permiso: permitId,
+  id: permitId
+});
+
+// Server broadcasts cancellation
+socket.on('eventos:cancel-permiso', (data) => {
+  // Update UI to show canceled status
+});
+```
+</CodeGroup>
+
+The Socket.io implementation (from `src/index.js:181-187`) ensures that all connected clients receive updates when permits are modified, approved, or canceled.
+
+## Deleting a Permit
+
+<Warning>
+  Only users with "Administrador" or "Desarrollador" roles can delete permits.
+</Warning>
+
+Delete a permit (only if not approved):
+
+```bash
+DELETE /eventos_especiales/
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="id" type="integer" required>
+  ID of the permit to delete
+</ParamField>
+
+### Response
+
+```json
+{
+  "message": "¡El permiso ha sido eliminado!"
+}
+```
+
+Same restrictions apply as with other permit types.
+
+## Report Generation
+
+Generate a comprehensive PDF report:
+
+```bash
+GET /eventos_especiales/reporte
+```
+
+The report includes statistics and detailed tables for all special event permits.
+
+## Database Schema
+
+The `permisos_eventos` table includes event-specific fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| nombre_evento | varchar | Event name |
+| tipo_evento | varchar | Event type classification |
+| servicio_comida | tinyint | Food service (0 or 1) |
+| servicio_bebidas | tinyint | Beverage service (0 or 1) |
+| servicio_confiteria | tinyint | Confectionery service (0 or 1) |
+| servicio_articulos_varios | tinyint | Misc. items sales (0 or 1) |
+| servicio_heladeria | tinyint | Ice cream service (0 or 1) |
+| servicio_otros | text | Other services description |
+
+Plus all standard permit fields (id, codigo_permiso, dates, organizer info, etc.)
+
+## File Storage
+
+Files are stored in:
+```
+../public/server-files/asuntos_publicos/permisos_municipales/eventos/
+```
+
+## Integration Points
+
+### Frontend Integration
+
+The frontend JavaScript (`src/public/JS/eventos.js`) handles:
+- Form submissions for add/edit operations
+- Search and filtering with real-time updates
+- PDF generation links
+- Delete operations with confirmation
+- Socket.io event listeners for multi-user synchronization
+
+### Route Mounting
+
+From `src/index.js:55`:
+```javascript
+app.use('/eventos_especiales', require('./routes/eventos.js'));
+```
+
+All event permit routes are mounted at the `/eventos_especiales` base path.

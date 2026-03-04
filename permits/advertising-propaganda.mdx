@@ -1,0 +1,471 @@
+---
+title: Advertising and Propaganda Permits
+description: Complete guide for managing permits for advertising and propaganda materials
+---
+
+## Overview
+
+Advertising and propaganda permits are required for businesses or individuals who want to display promotional materials in public spaces within the municipality. These permits specify the types of materials authorized and include additional details like comments and material descriptions.
+
+## Material Types
+
+The system supports the following advertising material types:
+
+<CardGroup cols={2}>
+  <Card title="Volantes" icon="file">
+    Flyers and leaflets
+  </Card>
+  <Card title="Afiches" icon="image">
+    Posters
+  </Card>
+  <Card title="Pendones" icon="flag">
+    Banners
+  </Card>
+  <Card title="Habladores" icon="comment">
+    Shelf talkers / wobbler signs
+  </Card>
+  <Card title="Stands" icon="store">
+    Display stands and booths
+  </Card>
+  <Card title="Calcomanías" icon="sticker">
+    Stickers and decals
+  </Card>
+  <Card title="Banderolas" icon="banner">
+    Street banners
+  </Card>
+  <Card title="Otros" icon="ellipsis">
+    Other materials (requires description)
+  </Card>
+</CardGroup>
+
+## Required Fields
+
+### Applicant Information
+
+<ParamField path="nombre" type="string" required>
+  Applicant's first name
+</ParamField>
+
+<ParamField path="apellido" type="string" required>
+  Applicant's last name
+</ParamField>
+
+<ParamField path="idDocument" type="string" required>
+  Applicant's identification document number
+</ParamField>
+
+<ParamField path="tlf" type="string" required>
+  Applicant's phone number
+</ParamField>
+
+<ParamField path="habitacion" type="string" required>
+  Applicant's address or location
+</ParamField>
+
+### Permit Details
+
+<ParamField path="habilitacion" type="date" required>
+  Start date when the permit becomes valid
+</ParamField>
+
+<ParamField path="vencimiento" type="date" required>
+  Expiration date of the permit
+</ParamField>
+
+<ParamField path="horario" type="string" required>
+  Authorized display schedule
+</ParamField>
+
+<ParamField path="sector" type="string" required>
+  Sector or area where materials can be displayed
+</ParamField>
+
+### Advertising Material Types
+
+<ParamField path="publicidad_volantes" type="string">
+  Quantity or description of flyers authorized
+</ParamField>
+
+<ParamField path="publicidad_afiches" type="string">
+  Quantity or description of posters authorized
+</ParamField>
+
+<ParamField path="publicidad_pendones" type="string">
+  Quantity or description of banners authorized
+</ParamField>
+
+<ParamField path="publicidad_habladores" type="string">
+  Quantity or description of shelf talkers authorized
+</ParamField>
+
+<ParamField path="publicidad_stands" type="string">
+  Quantity or description of stands authorized
+</ParamField>
+
+<ParamField path="publicidad_calcomanias" type="string">
+  Quantity or description of stickers authorized
+</ParamField>
+
+<ParamField path="publicidad_banderolas" type="string">
+  Quantity or description of street banners authorized
+</ParamField>
+
+<ParamField path="publicidad_otros" type="string">
+  Quantity of other materials
+</ParamField>
+
+<ParamField path="publicidad_otros_descripcion" type="string">
+  Description of other materials (required if publicidad_otros is provided)
+</ParamField>
+
+### Additional Information
+
+<ParamField path="comentarios" type="text">
+  Additional comments or special conditions for the permit
+</ParamField>
+
+<ParamField path="comprobante" type="file">
+  Payment receipt file upload (optional)
+</ParamField>
+
+<ParamField path="today" type="string" required>
+  Current date in YYYY-MM-DD format for validation
+</ParamField>
+
+## Creating a Permit
+
+To create a new advertising permit, send a POST request with multipart form data:
+
+```bash
+POST /publicidad_y_propaganda/add
+Content-Type: multipart/form-data
+```
+
+### Request Example
+
+```javascript
+const formData = new FormData();
+
+// Basic information
+formData.append('habilitacion', '2026-03-01');
+formData.append('vencimiento', '2026-06-01');
+formData.append('horario', 'Todo el día');
+formData.append('nombre', 'María');
+formData.append('apellido', 'González');
+formData.append('idDocument', 'V-23456789');
+formData.append('tlf', '0424-2345678');
+formData.append('habitacion', 'Av. Bolívar #456');
+formData.append('sector', 'Centro de la ciudad');
+
+// Material types
+formData.append('publicidad_volantes', '500');
+formData.append('publicidad_afiches', '20');
+formData.append('publicidad_pendones', '5');
+formData.append('publicidad_habladores', '');
+formData.append('publicidad_stands', '1');
+formData.append('publicidad_calcomanias', '100');
+formData.append('publicidad_banderolas', '');
+formData.append('publicidad_otros', '10');
+formData.append('publicidad_otros_descripcion', 'Banderas corporativas');
+
+// Additional details
+formData.append('comentarios', 'Campaña promocional de verano');
+formData.append('comprobante', fileInput.files[0]); // Optional
+formData.append('today', '2026-03-04');
+```
+
+### Response
+
+```json
+{
+  "success": "¡Se ha registrado correctamente el permiso!",
+  "permiso": "2026-001"
+}
+```
+
+## Editing a Permit
+
+Update an existing permit:
+
+```bash
+POST /publicidad_y_propaganda/edit
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+All fields from creation plus:
+
+<ParamField path="permiso" type="integer" required>
+  ID of the permit to edit
+</ParamField>
+
+<ParamField path="needPermiso" type="string">
+  Set to "true" if updating the payment receipt, "false" otherwise
+</ParamField>
+
+### Example
+
+```javascript
+const formData = new FormData();
+formData.append('permiso', '7');
+formData.append('habilitacion', '2026-03-01');
+formData.append('vencimiento', '2026-06-01');
+formData.append('horario', 'Todo el día');
+formData.append('nombre', 'María');
+formData.append('apellido', 'González');
+formData.append('idDocument', 'V-23456789');
+formData.append('tlf', '0424-2345678');
+formData.append('habitacion', 'Av. Bolívar #456');
+formData.append('sector', 'Centro de la ciudad');
+formData.append('publicidad_volantes', '1000'); // Updated quantity
+formData.append('publicidad_afiches', '20');
+formData.append('publicidad_pendones', '5');
+formData.append('publicidad_habladores', '');
+formData.append('publicidad_stands', '1');
+formData.append('publicidad_calcomanias', '100');
+formData.append('publicidad_banderolas', '');
+formData.append('publicidad_otros', '10');
+formData.append('publicidad_otros_descripcion', 'Banderas corporativas');
+formData.append('comentarios', 'Campaña promocional de verano - extendida');
+formData.append('needPermiso', 'false');
+formData.append('today', '2026-03-04');
+```
+
+### Response
+
+```json
+{
+  "success": "¡Se ha editado correctamente el permiso!",
+  "permiso": 7
+}
+```
+
+## Approving a Permit
+
+Approve a permit by uploading the authorized permit document:
+
+```bash
+POST /publicidad_y_propaganda/aprobate
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="permiso" type="integer" required>
+  ID of the permit to approve
+</ParamField>
+
+<ParamField path="permiso_aprobado" type="file" required>
+  Authorized permit document file
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": "¡Se ha aprobado correctamente el permiso!",
+  "permiso": 7
+}
+```
+
+## Canceling a Permit
+
+Cancel a permit with an observation note:
+
+```bash
+POST /publicidad_y_propaganda/cancel
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="permiso" type="integer" required>
+  ID of the permit to cancel
+</ParamField>
+
+<ParamField path="observacion" type="string" required>
+  Reason for cancellation
+</ParamField>
+
+### Example
+
+```javascript
+const formData = new FormData();
+formData.append('permiso', '7');
+formData.append('observacion', 'Cancelado a solicitud del cliente');
+```
+
+### Response
+
+```json
+{
+  "success": "¡Se ha cancelado la emisión del permiso correctamente!",
+  "permiso": 7
+}
+```
+
+## Searching and Filtering
+
+Search for permits with various filters:
+
+```bash
+POST /publicidad_y_propaganda/search
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="busqueda" type="string">
+  Search term (searches across permit code, dates, applicant name, document, phone, sector)
+</ParamField>
+
+<ParamField path="estado" type="string" required>
+  Filter by status: "Todos" (all), "Emitido" (approved), or "No Emitido" (not approved)
+</ParamField>
+
+### Response
+
+Returns HTML template with search results:
+
+```json
+{
+  "plantilla": "<button class='item aproved' id='itemResult1'>...</button>..."
+}
+```
+
+## Getting Permit Details
+
+Retrieve details for a specific permit:
+
+```bash
+POST /publicidad_y_propaganda/get
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="id" type="integer" required>
+  Permit ID
+</ParamField>
+
+### Response
+
+```json
+{
+  "result": {
+    "id": 7,
+    "codigo_permiso": "2026-001",
+    "habilitacion": "2026-03-01",
+    "vencimiento": "2026-06-01",
+    "horario": "Todo el día",
+    "dat_confirmacion": 1,
+    "requisitor_nombre": "María",
+    "requisitor_apellido": "González",
+    "requisitor_doc": "V-23456789",
+    "requisitor_tlf": "0424-2345678",
+    "requisitor_habitacion": "Av. Bolívar #456",
+    "sector_permisado": "Centro de la ciudad",
+    "publicidad_volantes": "500",
+    "publicidad_afiches": "20",
+    "publicidad_pendones": "5",
+    "publicidad_habladores": "",
+    "publicidad_stands": "1",
+    "publicidad_calcomanias": "100",
+    "publicidad_banderolas": "",
+    "publicidad_otros": "10",
+    "publicidad_otros_descripcion": "Banderas corporativas",
+    "comentarios": "Campaña promocional de verano",
+    "comprobante_de_pago": "comprobante_de_pago_1234567890.pdf",
+    "permiso_autorizado": "permiso_autorizado1234567890.pdf",
+    "creador": "Admin User",
+    "editor": "Admin User",
+    "emitido": 1,
+    "cancelado": 0,
+    "observacion": ""
+  },
+  "usuario": { /* current session user */ }
+}
+```
+
+## PDF Generation
+
+Generate a PDF document for a specific permit:
+
+```bash
+GET /publicidad_y_propaganda/permiso/publicidad-y-propaganda_2026-001
+```
+
+The URL pattern is: `publicidad-y-propaganda_{codigo_permiso}`
+
+### Response
+
+Returns a PDF document with:
+- Content-Type: `application/pdf`
+- All permit details including material types
+- Formatted using the template at `views/templates/permisos/publicidad.html`
+
+## Deleting a Permit
+
+<Warning>
+  Only users with "Administrador" or "Desarrollador" roles can delete permits.
+</Warning>
+
+Delete a permit (only if not approved):
+
+```bash
+DELETE /publicidad_y_propaganda/
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="id" type="integer" required>
+  ID of the permit to delete
+</ParamField>
+
+### Response
+
+```json
+{
+  "message": "¡El permiso ha sido eliminado!"
+}
+```
+
+Same restrictions apply as with alcoholic beverage permits.
+
+## Report Generation
+
+Generate a comprehensive PDF report:
+
+```bash
+GET /publicidad_y_propaganda/reporte
+```
+
+The report includes statistics and detailed tables for all advertising permits.
+
+## Database Schema
+
+The `permisos_publicidad` table extends the base permit structure with additional fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| publicidad_volantes | varchar | Flyers quantity/description |
+| publicidad_afiches | varchar | Posters quantity/description |
+| publicidad_pendones | varchar | Banners quantity/description |
+| publicidad_habladores | varchar | Shelf talkers quantity/description |
+| publicidad_stands | varchar | Stands quantity/description |
+| publicidad_calcomanias | varchar | Stickers quantity/description |
+| publicidad_banderolas | varchar | Street banners quantity/description |
+| publicidad_otros | varchar | Other materials quantity |
+| publicidad_otros_descripcion | text | Description of other materials |
+| comentarios | text | Additional comments |
+
+Plus all standard permit fields (id, codigo_permiso, dates, applicant info, etc.)
+
+## File Storage
+
+Files are stored in:
+```
+../public/server-files/asuntos_publicos/permisos_municipales/publicidad/
+```

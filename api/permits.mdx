@@ -1,0 +1,373 @@
+---
+title: 'Permit Endpoints'
+description: 'Endpoints for managing beverage, advertising, and special event permits'
+---
+
+<Note>
+All endpoints require session authentication. Check for `usuario` in `req.session`.
+</Note>
+
+## Beverage Permits
+
+Endpoints for managing alcoholic beverage sales permits (`/venta_de_bebidas`).
+
+### GET /venta_de_bebidas
+
+List all beverage permits.
+
+**Authentication Required**: Active session
+
+**Response**: Renders view with all permits from `permisos_bebidas` table
+
+### POST /venta_de_bebidas/get
+
+Get a single permit by ID.
+
+**Request Body**
+
+<ParamField body="id" type="number" required>
+  Permit ID
+</ParamField>
+
+**Response**
+
+<ResponseField name="result" type="object">
+  Permit object with all fields
+</ResponseField>
+
+<ResponseField name="usuario" type="object">
+  Session user information
+</ResponseField>
+
+### POST /venta_de_bebidas/search
+
+Search permits with filters.
+
+**Request Body**
+
+<ParamField body="estado" type="string" required>
+  Filter by status: "Todos", "Emitido", or "No Emitido"
+</ParamField>
+
+<ParamField body="busqueda" type="string">
+  Search query (matches code, name, document, phone, sector)
+</ParamField>
+
+**Response**
+
+<ResponseField name="plantilla" type="string">
+  HTML template with filtered and highlighted results
+</ResponseField>
+
+### POST /venta_de_bebidas/add
+
+Create a new beverage permit.
+
+**Authentication Required**: Active session
+
+**Content-Type**: `multipart/form-data` (supports file upload)
+
+**Request Body**
+
+<ParamField body="habilitacion" type="date" required>
+  Start date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField body="vencimiento" type="date" required>
+  Expiration date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField body="horario" type="string" required>
+  Permitted hours
+</ParamField>
+
+<ParamField body="nombre" type="string" required>
+  Applicant first name
+</ParamField>
+
+<ParamField body="apellido" type="string" required>
+  Applicant last name
+</ParamField>
+
+<ParamField body="idDocument" type="string" required>
+  ID document number
+</ParamField>
+
+<ParamField body="tlf" type="string" required>
+  Phone number
+</ParamField>
+
+<ParamField body="habitacion" type="string" required>
+  Residence/address
+</ParamField>
+
+<ParamField body="sector" type="string" required>
+  Permitted sector/area
+</ParamField>
+
+<ParamField body="comprobante" type="file">
+  Payment receipt upload (optional)
+</ParamField>
+
+<ParamField body="today" type="date" required>
+  Current date for validation (YYYY-MM-DD)
+</ParamField>
+
+**Response**
+
+<ResponseField name="success" type="string">
+  Success message: "¡Se ha registrado correctamente el permiso!"
+</ResponseField>
+
+<ResponseField name="permiso" type="string">
+  Generated permit code (format: YYYY-NNN)
+</ResponseField>
+
+**Example Request**
+
+```bash
+curl -X POST http://localhost/venta_de_bebidas/add \
+  -H "Content-Type: multipart/form-data" \
+  --cookie "connect.sid=SESSION_ID" \
+  -F "nombre=Juan" \
+  -F "apellido=Pérez" \
+  -F "idDocument=12345678" \
+  -F "tlf=04141234567" \
+  -F "habitacion=Av. Principal #123" \
+  -F "sector=Centro" \
+  -F "habilitacion=2026-03-01" \
+  -F "vencimiento=2026-12-31" \
+  -F "horario=8:00 AM - 10:00 PM" \
+  -F "today=2026-03-04" \
+  -F "comprobante=@receipt.pdf"
+```
+
+### POST /venta_de_bebidas/edit
+
+Update an existing permit.
+
+**Request Body**: Same as `/add` plus:
+
+<ParamField body="permiso" type="number" required>
+  Permit ID to edit
+</ParamField>
+
+<ParamField body="needPermiso" type="boolean" required>
+  Whether payment receipt is included ("true" or "false")
+</ParamField>
+
+**Response**
+
+<ResponseField name="success" type="string">
+  "¡Se ha editado correctamente el permiso!"
+</ResponseField>
+
+### POST /venta_de_bebidas/aprobate
+
+Approve a permit (upload authorized permit file).
+
+**Authentication Required**: Active session
+
+**Content-Type**: `multipart/form-data`
+
+**Request Body**
+
+<ParamField body="permiso" type="number" required>
+  Permit ID to approve
+</ParamField>
+
+<ParamField body="permiso_aprobado" type="file" required>
+  Authorized permit document
+</ParamField>
+
+**Response**
+
+<ResponseField name="success" type="string">
+  "¡Se ha aprobado correctamente el permiso!"
+</ResponseField>
+
+### POST /venta_de_bebidas/cancel
+
+Cancel a permit with observation.
+
+**Request Body**
+
+<ParamField body="permiso" type="number" required>
+  Permit ID to cancel
+</ParamField>
+
+<ParamField body="observacion" type="string" required>
+  Reason for cancellation
+</ParamField>
+
+**Response**
+
+<ResponseField name="success" type="string">
+  "¡Se ha cancelado la emisión del permiso correctamente!"
+</ResponseField>
+
+### DELETE /venta_de_bebidas
+
+Delete a permit (admin/developer only).
+
+**Authentication Required**: Administrador or Desarrollador role
+
+**Request Body**
+
+<ParamField body="id" type="number" required>
+  Permit ID to delete
+</ParamField>
+
+**Response**
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+**Status Codes**:
+- `200`: Permit deleted successfully
+- `404`: Permit not found
+- `409`: Cannot delete (already approved or approved permits exist after this one)
+- `500`: Server error
+
+### GET /venta_de_bebidas/permiso/:permiso
+
+Generate PDF permit document.
+
+**Authentication Required**: Active session
+
+**URL Parameters**
+
+<ParamField path="permiso" type="string" required>
+  Permit identifier (format: `bebidas-alcoholicas_YYYY-NNN`)
+</ParamField>
+
+**Response**: PDF document with permit details
+
+**Example Request**
+
+```bash
+curl http://localhost/venta_de_bebidas/permiso/bebidas-alcoholicas_2026-001 \
+  --cookie "connect.sid=SESSION_ID" \
+  -o permit.pdf
+```
+
+### GET /venta_de_bebidas/reporte
+
+Generate complete report of all beverage permits.
+
+**Response**: PDF report with statistics and permit listings
+
+## Advertising Permits
+
+Endpoints for advertising and propaganda permits (`/publicidad_y_propaganda`).
+
+All endpoints follow the same structure as beverage permits with additional fields:
+
+**Additional Fields for Add/Edit**:
+
+<ParamField body="publicidad_volantes" type="boolean">
+  Flyers included
+</ParamField>
+
+<ParamField body="publicidad_afiches" type="boolean">
+  Posters included
+</ParamField>
+
+<ParamField body="publicidad_pendones" type="boolean">
+  Banners included
+</ParamField>
+
+<ParamField body="publicidad_habladores" type="boolean">
+  Shelf talkers included
+</ParamField>
+
+<ParamField body="publicidad_stands" type="boolean">
+  Stands included
+</ParamField>
+
+<ParamField body="publicidad_calcomanias" type="boolean">
+  Stickers included
+</ParamField>
+
+<ParamField body="publicidad_banderolas" type="boolean">
+  Flag banners included
+</ParamField>
+
+<ParamField body="publicidad_otros" type="boolean">
+  Other types included
+</ParamField>
+
+<ParamField body="publicidad_otros_descripcion" type="string">
+  Description of other advertising types
+</ParamField>
+
+<ParamField body="comentarios" type="string">
+  Additional comments
+</ParamField>
+
+### Endpoints
+
+- `GET /publicidad_y_propaganda` - List all
+- `POST /publicidad_y_propaganda/get` - Get by ID
+- `POST /publicidad_y_propaganda/search` - Search
+- `POST /publicidad_y_propaganda/add` - Create
+- `POST /publicidad_y_propaganda/edit` - Update
+- `POST /publicidad_y_propaganda/aprobate` - Approve
+- `POST /publicidad_y_propaganda/cancel` - Cancel
+- `DELETE /publicidad_y_propaganda` - Delete (admin only)
+- `GET /publicidad_y_propaganda/permiso/publicidad-y-propaganda_YYYY-NNN` - Generate PDF
+- `GET /publicidad_y_propaganda/reporte` - Generate report
+
+## Special Events Permits
+
+Endpoints for special events permits (`/eventos_especiales`).
+
+All endpoints follow the same structure as beverage permits with additional fields:
+
+**Additional Fields for Add/Edit**:
+
+<ParamField body="nombre_evento" type="string" required>
+  Event name
+</ParamField>
+
+<ParamField body="tipo_evento" type="string" required>
+  Event type: "Deportivo", "Cultural", "Benefico", "Educativo", "Religioso", or custom
+</ParamField>
+
+<ParamField body="servicio_comida" type="boolean">
+  Food service included
+</ParamField>
+
+<ParamField body="servicio_bebidas" type="boolean">
+  Beverage service included
+</ParamField>
+
+<ParamField body="servicio_confiteria" type="boolean">
+  Confectionery service included
+</ParamField>
+
+<ParamField body="servicio_varios" type="boolean">
+  Various items service included
+</ParamField>
+
+<ParamField body="servicio_heladeria" type="boolean">
+  Ice cream service included
+</ParamField>
+
+<ParamField body="servicio_otros" type="string">
+  Other services description
+</ParamField>
+
+### Endpoints
+
+- `GET /eventos_especiales` - List all
+- `POST /eventos_especiales/get` - Get by ID
+- `POST /eventos_especiales/search` - Search
+- `POST /eventos_especiales/add` - Create
+- `POST /eventos_especiales/edit` - Update
+- `POST /eventos_especiales/aprobate` - Approve
+- `POST /eventos_especiales/cancel` - Cancel
+- `DELETE /eventos_especiales` - Delete (admin only)
+- `GET /eventos_especiales/permiso/eventos-especiales_YYYY-NNN` - Generate PDF
+- `GET /eventos_especiales/reporte` - Generate report

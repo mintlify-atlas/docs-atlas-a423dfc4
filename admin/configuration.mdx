@@ -1,0 +1,482 @@
+---
+title: Configuration
+description: System configuration and settings for the Sistema de Permisos Municipales
+---
+
+## Overview
+
+The Sistema de Permisos Municipales requires configuration for database connections, server settings, sessions, and file storage. This guide covers all configurable aspects of the system.
+
+## Database configuration
+
+### Connection settings
+
+Database connection is configured in `src/keys.js` and `src/database.js`.
+
+**src/keys.js:**
+```javascript
+module.exports = {
+  database: {
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'asuntos_publicos'
+  }
+};
+```
+
+**src/database.js:**
+```javascript
+const mysql = require('mysql'),
+      keys = require('./keys'),
+      pool = mysql.createPool(keys.database);
+
+pool.getConnection((err, connection) => {
+  if(err){
+    if(err.code === 'PROTOCOL_CONNECTION_LOST'){
+      console.log('Database connection lost');
+    }
+    if(err.code === 'ER_CON_COUNT_ERROR'){
+      console.log('Too many connections');
+    }
+    if(err.code === 'ECONNREFUSED'){
+      console.log('Connection refused');
+    }
+  }
+  if(connection) connection.release();
+  return;
+});
+
+module.exports = pool;
+```
+
+<Warning>
+For production, store database credentials in environment variables, not in source code.
+</Warning>
+
+### Environment variables
+
+Recommended production configuration using environment variables:
+
+```javascript
+// src/keys.js (production version)
+module.exports = {
+  database: {
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'asuntos_publicos'
+  }
+};
+```
+
+<Accordion title="Example .env file">
+```bash
+# Database Configuration
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_secure_password
+DB_NAME=asuntos_publicos
+
+# Server Configuration
+PORT=4000
+NODE_ENV=production
+
+# Session Configuration
+SESSION_SECRET=your_secure_session_secret
+SESSION_KEY=permisos_municipales_pass
+```
+</Accordion>
+
+## Server configuration
+
+Server settings are defined in `src/index.js`.
+
+### Port configuration
+
+```javascript
+// Default port
+app.set('port', process.env.PORT || 4000);
+
+// Start server
+const server = app.listen(app.get('port'), () => {
+  console.log('¡Servidor Iniciado Correctamente!');
+});
+```
+
+<Note>
+The server runs on port 4000 by default. Change this via the PORT environment variable.
+</Note>
+
+### View engine
+
+```javascript
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+```
+
+The system uses EJS (Embedded JavaScript) templating engine for server-side rendering.
+
+### Static files
+
+```javascript
+app.use(express.static(path.join(__dirname, 'public')));
+```
+
+Static assets are served from `src/public/`:
+- CSS: `src/public/CSS/`
+- JavaScript: `src/public/JS/`
+- Bootstrap: `src/public/bootstrap/`
+- Server files: `src/public/server-files/`
+
+## Session configuration
+
+Sessions are configured with express-session:
+
+```javascript
+app.use(session({
+  key: 'permisos_municipales_pass',
+  secret: 'permisos_municipales',
+  resave: false,
+  saveUninitialized: false
+}));
+```
+
+<ParamField path="key" type="string">
+  Session cookie name. Default: `permisos_municipales_pass`
+</ParamField>
+
+<ParamField path="secret" type="string">
+  Session encryption secret. **Change this in production!**
+</ParamField>
+
+<ParamField path="resave" type="boolean">
+  Force session save on every request. Set to `false` for better performance.
+</ParamField>
+
+<ParamField path="saveUninitialized" type="boolean">
+  Save new but unmodified sessions. Set to `false` to comply with GDPR.
+</ParamField>
+
+### Production session configuration
+
+```javascript
+app.use(session({
+  key: process.env.SESSION_KEY || 'permisos_municipales_pass',
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // HTTPS only
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+```
+
+<Warning>
+Always use a strong, random session secret in production. Never commit secrets to version control.
+</Warning>
+
+## File upload configuration
+
+File uploads are handled by Multer with specific storage configurations.
+
+### Temporary storage
+
+Files are initially uploaded to a temporary directory:
+
+```javascript
+const storageProyect = multer.diskStorage({
+  destination: path.join(__dirname, '../public/server-files/temps/'),
+  filename: (req, file, funcion) => {
+    if('usuario' in req.session){
+      funcion(null, file.fieldname + '_de_pago_' + Date.now() + 
+              file.originalname.substr(file.originalname.lastIndexOf('.')));
+    }
+  }
+});
+```
+
+### Final storage locations
+
+After validation, files are moved to permanent locations:
+
+<CardGroup cols={3}>
+  <Card title="Bebidas" icon="wine-glass">
+    `src/public/server-files/asuntos_publicos/permisos_municipales/bebidas/`
+  </Card>
+  <Card title="Publicidad" icon="bullhorn">
+    `src/public/server-files/asuntos_publicos/permisos_municipales/publicidad/`
+  </Card>
+  <Card title="Eventos" icon="calendar">
+    `src/public/server-files/asuntos_publicos/permisos_municipales/eventos/`
+  </Card>
+</CardGroup>
+
+### File naming convention
+
+Uploaded files are renamed with timestamps:
+
+```javascript
+// Format: fieldname_de_pago_timestamp.extension
+// Example: comprobante_de_pago_1640000000000.pdf
+
+file.fieldname + '_de_pago_' + Date.now() + extension
+```
+
+<Note>
+Ensure these directories exist and have write permissions before starting the server.
+</Note>
+
+## Socket.io configuration
+
+WebSocket server is initialized after the HTTP server:
+
+```javascript
+const SocketIO = require('socket.io');
+const io = SocketIO(server);
+
+io.on('connection', (socket) => {
+  console.log('¡Se ha detectado una conexión!', socket.id);
+  
+  // Event listeners for permits
+  socket.on('bebidas:nuevo-permiso', handler);
+  socket.on('publicidad:nuevo-permiso', handler);
+  socket.on('eventos:nuevo-permiso', handler);
+  // ... more events
+});
+```
+
+<Info>
+Socket.io v4.4.1 is used for real-time updates. See the [WebSockets documentation](/technical/websockets) for details.
+</Info>
+
+## Middleware configuration
+
+The application uses several Express middlewares:
+
+```javascript
+// Parse URL-encoded bodies
+app.use(express.urlencoded({extended: false}));
+
+// Parse JSON bodies
+app.use(express.json());
+
+// Session middleware
+app.use(session({ /* config */ }));
+
+// Static files
+app.use(express.static(path.join(__dirname, 'public')));
+```
+
+## Route configuration
+
+Routes are modularized and mounted at specific paths:
+
+```javascript
+// Authentication routes
+app.use(require('./routes/authentications.js'));
+
+// Permit routes
+app.use('/venta_de_bebidas', require('./routes/bebidas.js'));
+app.use('/eventos_especiales', require('./routes/eventos.js'));
+app.use('/publicidad_y_propaganda', require('./routes/publicidad.js'));
+
+// User management routes
+app.use('/usuarios', require('./routes/usuarios.js'));
+
+// Help file route
+app.get('/ayuda', (req, res) => {
+  if('usuario' in req.session){
+    if(req.session.usuario.tipo_usuario != 'Administrador' && 
+       req.session.usuario.tipo_usuario != 'Desarrollador'){
+      res.sendFile(path.join(__dirname, 'help-files/admin.pdf'));
+    } else {
+      res.sendFile(path.join(__dirname, 'help-files/user.pdf'));
+    }
+  } else {
+    res.redirect('http://' + req.headers.host);
+  }
+});
+```
+
+## Initial setup
+
+The system creates an initial admin user on startup:
+
+```javascript
+// src/lib/createAdmin.js is called on server start
+require('./lib/createAdmin.js')(pool);
+```
+
+This creates:
+- Username: `ADMINS`
+- Password: `ADMIN` (hashed with bcrypt)
+- Role: `Administrador`
+
+<Warning>
+Change the default admin password immediately after first login!
+</Warning>
+
+## Production deployment
+
+For production environments, consider these configurations:
+
+### Using PM2
+
+```javascript
+// ecosystem.config.js
+module.exports = {
+  apps: [{
+    name: 'permisos-municipales',
+    script: 'src/index.js',
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '1G',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 4000,
+      DB_HOST: 'localhost',
+      DB_USER: 'root',
+      DB_PASSWORD: 'your_password',
+      DB_NAME: 'asuntos_publicos',
+      SESSION_SECRET: 'your_session_secret'
+    }
+  }]
+};
+```
+
+Start with: `pm2 start ecosystem.config.js`
+
+### Nginx reverse proxy
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    
+    location / {
+        proxy_pass http://localhost:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+    
+    # WebSocket support
+    location /socket.io/ {
+        proxy_pass http://localhost:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+### SSL/HTTPS configuration
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com;
+    
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+    
+    # ... rest of config
+}
+```
+
+## Configuration checklist
+
+<Steps>
+  <Step title="Database setup">
+    - [ ] Create `asuntos_publicos` database
+    - [ ] Run `database/database.sql` schema
+    - [ ] Configure database credentials in `src/keys.js`
+    - [ ] Test database connection
+  </Step>
+  
+  <Step title="Environment variables">
+    - [ ] Set `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+    - [ ] Set `PORT` (default 4000)
+    - [ ] Set `SESSION_SECRET` (generate random string)
+    - [ ] Set `NODE_ENV=production` for production
+  </Step>
+  
+  <Step title="File storage">
+    - [ ] Create directory structure:
+      - `src/public/server-files/temps/`
+      - `src/public/server-files/asuntos_publicos/permisos_municipales/bebidas/`
+      - `src/public/server-files/asuntos_publicos/permisos_municipales/publicidad/`
+      - `src/public/server-files/asuntos_publicos/permisos_municipales/eventos/`
+    - [ ] Set appropriate write permissions
+  </Step>
+  
+  <Step title="Server configuration">
+    - [ ] Install all dependencies: `npm install`
+    - [ ] Configure PM2 for production
+    - [ ] Set up Nginx reverse proxy
+    - [ ] Configure SSL certificates
+    - [ ] Set up firewall rules (allow port 80/443, block 4000)
+  </Step>
+  
+  <Step title="Security">
+    - [ ] Change default admin password
+    - [ ] Use strong session secret
+    - [ ] Enable HTTPS in production
+    - [ ] Configure secure session cookies
+    - [ ] Review file upload permissions
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<Accordion title="Server won't start">
+**Possible causes:**
+- Port 4000 already in use
+- Database connection failed
+- Missing dependencies
+
+**Solutions:**
+- Check if another process is using port 4000: `lsof -i :4000`
+- Verify database is running and credentials are correct
+- Run `npm install` to install dependencies
+</Accordion>
+
+<Accordion title="Session not persisting">
+**Possible causes:**
+- Session secret not configured
+- Cookie settings incompatible with environment
+
+**Solutions:**
+- Set `SESSION_SECRET` environment variable
+- For HTTPS, ensure `cookie.secure` is true
+- Check browser cookie settings
+</Accordion>
+
+<Accordion title="File uploads failing">
+**Possible causes:**
+- Directories don't exist
+- Insufficient permissions
+- Disk space full
+
+**Solutions:**
+- Create required directories
+- Set proper permissions: `chmod 755` on upload directories
+- Check disk space: `df -h`
+</Accordion>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Installation guide" icon="download" href="/deployment/installation">
+    Complete installation instructions
+  </Card>
+  <Card title="Security" icon="shield" href="/deployment/security">
+    Security best practices and hardening
+  </Card>
+</CardGroup>

@@ -1,0 +1,215 @@
+---
+title: 'Authentication'
+description: 'User login, logout, and password management endpoints'
+---
+
+## Login
+
+<Note>
+All endpoints require session authentication. After login, the session object contains a `usuario` field with user details.
+</Note>
+
+### POST /usuarios/login
+
+Authenticate a user and create a session.
+
+**Request Body**
+
+<ParamField body="indicador" type="string" required>
+  Username (3-51 characters, letters only, no numbers)
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User password (6-30 characters)
+</ParamField>
+
+**Validation Rules**
+
+- **indicador**: 
+  - Must be at least 3 characters
+  - Maximum 51 characters
+  - Cannot contain numbers
+  - Automatically converted to uppercase
+
+- **password**:
+  - Minimum 6 characters
+  - Maximum 30 characters
+
+**Response**
+
+<ResponseField name="success" type="string">
+  Success message: "¡Usuario Correcto!"
+</ResponseField>
+
+<ResponseField name="errors.indicador" type="string">
+  Error message for username validation failures
+</ResponseField>
+
+<ResponseField name="errors.password" type="string">
+  Error message for password validation failures
+</ResponseField>
+
+**Session Object Created**
+
+On successful login, `req.session.usuario` contains:
+
+```json
+{
+  "indicador": "USERNAME",
+  "nombre": "First Name",
+  "apellido": "Last Name",
+  "cargo": "Position/Role",
+  "tipo_usuario": "Administrador|Analista|Desarrollador"
+}
+```
+
+**Example Request**
+
+```bash
+curl -X POST http://localhost/usuarios/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "indicador=PEREZJ&password=mypassword123"
+```
+
+**Example Response**
+
+<Tabs>
+  <Tab title="Success">
+    ```json
+    {
+      "success": "¡Usuario Correcto!"
+    }
+    ```
+  </Tab>
+  <Tab title="Invalid Username">
+    ```json
+    {
+      "indicador": "¡Usuario no encontrado!"
+    }
+    ```
+  </Tab>
+  <Tab title="Invalid Password">
+    ```json
+    {
+      "password": "¡Contraseña incorrecta!"
+    }
+    ```
+  </Tab>
+  <Tab title="Validation Error">
+    ```json
+    {
+      "indicador": "¡El indicador no debe contener números!",
+      "password": "¡La contraseña debe contener, por lo menos, 6 caracteres!"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Logout
+
+### GET /close
+
+Destroy the user session and log out.
+
+**Response**
+
+Redirects to home page (clears `req.session.usuario`)
+
+**Example Request**
+
+```bash
+curl http://localhost/close
+```
+
+## Password Management
+
+### GET /password
+
+Get the password change form (requires active session).
+
+**Response**
+
+Returns password change form view with user type
+
+### POST /password
+
+Change the current user's password.
+
+**Authentication Required**: Active session
+
+**Request Body**
+
+<ParamField body="password" type="string" required>
+  Current password (6-30 characters)
+</ParamField>
+
+<ParamField body="pass1" type="string" required>
+  New password (6-30 characters, must be different from current)
+</ParamField>
+
+<ParamField body="pass2" type="string" required>
+  New password confirmation (must match pass1)
+</ParamField>
+
+**Validation Rules**
+
+- Current password must be correct
+- New password must be different from current password
+- New password and confirmation must match
+- All passwords must be 6-30 characters
+
+**Response**
+
+<ResponseField name="redirect" type="string">
+  On success, redirects to /close (logs out user)
+</ResponseField>
+
+<ResponseField name="errors.password" type="string">
+  Error for current password validation
+</ResponseField>
+
+<ResponseField name="errors.pass1" type="string">
+  Error for new password validation
+</ResponseField>
+
+<ResponseField name="errors.pass2" type="string">
+  Error for password confirmation validation
+</ResponseField>
+
+**Example Request**
+
+```bash
+curl -X POST http://localhost/password \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --cookie "connect.sid=SESSION_ID" \
+  -d "password=currentpass&pass1=newpassword123&pass2=newpassword123"
+```
+
+**Example Response**
+
+<Tabs>
+  <Tab title="Success">
+    Redirects to `/close` (logout page)
+  </Tab>
+  <Tab title="Wrong Current Password">
+    ```json
+    {
+      "password": "¡La contraseña es incorrecta!"
+    }
+    ```
+  </Tab>
+  <Tab title="Passwords Don't Match">
+    ```json
+    {
+      "pass2": "¡Las contraseñas no coinciden!"
+    }
+    ```
+  </Tab>
+  <Tab title="Same Password">
+    ```json
+    {
+      "pass1": "¡La nueva contraseña no debe ser igual a la contraseña actual!"
+    }
+    ```
+  </Tab>
+</Tabs>

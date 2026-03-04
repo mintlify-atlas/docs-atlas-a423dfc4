@@ -1,0 +1,358 @@
+---
+title: Roles and permissions
+description: Understanding user roles and access control in the Sistema de Permisos Municipales
+---
+
+## Overview
+
+The Sistema de Permisos Municipales implements role-based access control (RBAC) with three distinct user roles. Each role has specific permissions that determine what actions users can perform.
+
+## User roles
+
+<CardGroup cols={3}>
+  <Card title="Desarrollador" icon="code" color="#8b5cf6">
+    **Highest privileges**
+    
+    Full system access including all administrative functions and user management.
+  </Card>
+  <Card title="Administrador" icon="user-shield" color="#2563eb">
+    **Administrative access**
+    
+    Can manage users and permits but cannot modify other administrators or developers.
+  </Card>
+  <Card title="Analista" icon="user" color="#10b981">
+    **Standard access**
+    
+    Can create, view, and manage permits but cannot access user management.
+  </Card>
+</CardGroup>
+
+## Role capabilities
+
+### Desarrollador (Developer)
+
+**Full system access with no restrictions:**
+
+<Accordion title="User management">
+- Create all types of users (Desarrollador, Administrador, Analista)
+- Edit all user accounts
+- Delete any user account
+- View all users
+- Change any user's role
+</Accordion>
+
+<Accordion title="Permit management">
+- Create permits
+- Edit permits
+- Approve permits
+- Cancel permits
+- Delete permits
+- Generate reports
+- Export PDFs
+</Accordion>
+
+<Accordion title="System access">
+- Access all routes and endpoints
+- View system configuration
+- Access administrative interfaces
+- Full database access
+</Accordion>
+
+### Administrador (Administrator)
+
+**Administrative access with some restrictions:**
+
+<Accordion title="User management">
+✅ Can:
+- Create Administrador and Analista users
+- Edit Administrador and Analista accounts (except Desarrollador accounts)
+- Delete Administrador and Analista accounts
+- View all users
+
+❌ Cannot:
+- Create Desarrollador accounts
+- Edit Desarrollador accounts
+- Delete Desarrollador accounts
+- Edit their own account
+</Accordion>
+
+<Accordion title="Permit management">
+- Full permit management capabilities (same as Desarrollador)
+- Create, edit, approve, cancel permits
+- Delete permits
+- Generate reports
+</Accordion>
+
+<Accordion title="System access">
+- Access administrative interfaces
+- View configuration (but cannot modify system settings)
+</Accordion>
+
+### Analista (Analyst)
+
+**Standard operational access:**
+
+<Accordion title="Permit management">
+- Create permits
+- Edit own permits (before approval)
+- View all permits
+- Search and filter permits
+- Export approved permits as PDF
+- Generate reports
+</Accordion>
+
+<Accordion title="Restrictions">
+❌ Cannot:
+- Approve permits (requires Administrador/Desarrollador)
+- Delete permits
+- Access user management
+- Access administrative settings
+- Edit other users' information
+</Accordion>
+
+## Role verification
+
+The system uses middleware to enforce role-based access:
+
+### verifySession middleware
+
+Checks if a user is authenticated:
+
+```javascript
+// src/middlewares/verifySession.js
+module.exports = (req, res, next) => {
+  if('usuario' in req.session){
+    next();
+  } else {
+    res.redirect('http://' + req.headers.host);
+  }
+};
+```
+
+### verifyRoles middleware
+
+Restricts access to specific roles:
+
+```javascript
+// src/middlewares/verifyRoles.js
+module.exports = (...roles) => {
+  return (req, res, next) => {
+    if('usuario' in req.session){
+      if(roles.includes(req.session.usuario.tipo_usuario)){
+        next();
+      } else {
+        res.status(403).json({message: 'Acceso denegado'});
+      }
+    } else {
+      res.redirect('http://' + req.headers.host);
+    }
+  };
+};
+```
+
+### Usage example
+
+```javascript
+// Restrict delete endpoint to Administrador and Desarrollador
+router.delete('/', 
+  verifySession, 
+  verifyRoles('Administrador', 'Desarrollador'), 
+  upload.none(), 
+  async (req, res) => {
+    // Delete logic
+  }
+);
+```
+
+## Protected routes
+
+### User management routes
+
+<ParamField path="GET /usuarios" type="endpoint">
+  **Required role:** Administrador or Desarrollador
+  
+  List all users in the system.
+</ParamField>
+
+<ParamField path="POST /usuarios/add" type="endpoint">
+  **Required role:** Administrador or Desarrollador
+  
+  Create a new user account.
+</ParamField>
+
+<ParamField path="GET /usuarios/edit/:username" type="endpoint">
+  **Required role:** Administrador or Desarrollador
+  
+  Edit restrictions:
+  - Cannot edit own account
+  - Administrador cannot edit Desarrollador accounts
+</ParamField>
+
+<ParamField path="POST /usuarios/delete" type="endpoint">
+  **Required role:** Administrador or Desarrollador
+  
+  Delete restrictions apply (same as edit).
+</ParamField>
+
+### Permit deletion routes
+
+<ParamField path="DELETE /venta_de_bebidas" type="endpoint">
+  **Required role:** Administrador or Desarrollador
+  
+  Delete beverage permits with validation.
+</ParamField>
+
+<ParamField path="DELETE /publicidad_y_propaganda" type="endpoint">
+  **Required role:** Administrador or Desarrollador
+  
+  Delete advertising permits with validation.
+</ParamField>
+
+<ParamField path="DELETE /eventos_especiales" type="endpoint">
+  **Required role:** Administrador or Desarrollador
+  
+  Delete event permits with validation.
+</ParamField>
+
+## Access control logic
+
+### User account editing
+
+The system prevents users from editing their own accounts or higher-privileged accounts:
+
+```javascript
+// From src/routes/usuarios.js
+if(req.session.usuario.indicador == result[0].username || 
+   result[0].tipo_usuario == 'Desarrollador'){
+  res.redirect('http://' + req.headers.host + '/usuarios');
+}
+```
+
+<Warning>
+This prevents:
+- Self-editing (could change own role to Desarrollador)
+- Administrators editing Desarrollador accounts
+</Warning>
+
+### Route protection patterns
+
+**Pattern 1: Session only**
+```javascript
+if('usuario' in req.session){
+  // Allow access
+} else {
+  res.redirect('http://' + req.headers.host);
+}
+```
+
+**Pattern 2: Session + role check**
+```javascript
+if(('usuario' in req.session) && 
+   (req.session.usuario.tipo_usuario == 'Desarrollador' || 
+    req.session.usuario.tipo_usuario == 'Administrador')){
+  // Allow access
+} else {
+  res.redirect('http://' + req.headers.host);
+}
+```
+
+**Pattern 3: Middleware-based**
+```javascript
+router.delete('/', 
+  verifySession, 
+  verifyRoles('Administrador', 'Desarrollador'),
+  handler
+);
+```
+
+## Permission matrix
+
+| Action | Analista | Administrador | Desarrollador |
+|--------|----------|---------------|---------------|
+| **Authentication** |
+| Login | ✅ | ✅ | ✅ |
+| Change own password | ✅ | ✅ | ✅ |
+| Logout | ✅ | ✅ | ✅ |
+| **Permit Operations** |
+| View permits | ✅ | ✅ | ✅ |
+| Create permits | ✅ | ✅ | ✅ |
+| Edit permits | ✅ | ✅ | ✅ |
+| Search permits | ✅ | ✅ | ✅ |
+| Approve permits | ❌ | ✅ | ✅ |
+| Cancel permits | ❌ | ✅ | ✅ |
+| Delete permits | ❌ | ✅ | ✅ |
+| Generate PDFs | ✅ | ✅ | ✅ |
+| Generate reports | ✅ | ✅ | ✅ |
+| **User Management** |
+| View users | ❌ | ✅ | ✅ |
+| Create Analista | ❌ | ✅ | ✅ |
+| Create Administrador | ❌ | ✅ | ✅ |
+| Create Desarrollador | ❌ | ❌ | ✅ |
+| Edit Analista | ❌ | ✅ | ✅ |
+| Edit Administrador | ❌ | ✅ | ✅ |
+| Edit Desarrollador | ❌ | ❌ | ✅ |
+| Delete users | ❌ | ✅ | ✅ |
+| Edit own account | ❌ | ❌ | ❌ |
+
+## Session storage
+
+User role information is stored in the session:
+
+```javascript
+req.session.usuario = {
+  indicador: result[0].username,     // Username
+  nombre: result[0].nombre,          // First name
+  apellido: result[0].apellido,      // Last name
+  cargo: result[0].cargo,            // Position
+  tipo_usuario: result[0].tipo_usuario // Role (key for permissions)
+};
+```
+
+The `tipo_usuario` field determines the user's capabilities throughout the application.
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Principle of least privilege" icon="shield-halved">
+    Assign users the minimum role needed for their job functions. Most users should be Analistas.
+  </Card>
+  <Card title="Regular audits" icon="clipboard-list">
+    Periodically review user roles and remove unnecessary elevated privileges.
+  </Card>
+  <Card title="Desarrollador protection" icon="lock">
+    Limit the number of Desarrollador accounts. They have unrestricted system access.
+  </Card>
+  <Card title="Role changes" icon="user-pen">
+    Document why users receive elevated privileges (Administrador or Desarrollador).
+  </Card>
+</CardGroup>
+
+## Security considerations
+
+<Warning>
+**Important security notes:**
+
+1. **Cannot self-elevate:** Users cannot edit their own accounts to gain higher privileges
+2. **Desarrollador protection:** Only other Desarrolladores can modify Desarrollador accounts
+3. **Role validation:** User roles are validated on every protected request
+4. **Session-based:** All role checks depend on valid session data
+</Warning>
+
+<Note>
+If you need to add a new role or modify permissions, you'll need to:
+1. Update the database schema to include the new role
+2. Modify validation rules in `src/routes/usuarios.js`
+3. Update middleware role checks
+4. Update the UI to show/hide features based on role
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="User management" icon="users" href="/guides/user-management">
+    Learn how to create and manage users
+  </Card>
+  <Card title="Authentication" icon="key" href="/guides/authentication">
+    Understand the authentication system
+  </Card>
+</CardGroup>

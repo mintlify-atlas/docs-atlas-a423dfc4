@@ -1,0 +1,257 @@
+---
+title: User management
+description: Learn how to create, edit, and manage users in the Sistema de Permisos Municipales
+---
+
+## Overview
+
+User management in the Sistema de Permisos Municipales allows administrators to create, edit, and delete user accounts. Only users with Administrador or Desarrollador roles can manage users.
+
+<Warning>
+User management functions are restricted to Administrador and Desarrollador roles only.
+</Warning>
+
+## User roles
+
+The system supports three user roles:
+
+<CardGroup cols={3}>
+  <Card title="Desarrollador" icon="code">
+    Highest level access. Can manage all users including other administrators.
+  </Card>
+  <Card title="Administrador" icon="user-shield">
+    Can manage users but cannot edit or delete Desarrollador accounts.
+  </Card>
+  <Card title="Analista" icon="user">
+    Standard user with access to permit management functions.
+  </Card>
+</CardGroup>
+
+## Viewing users
+
+Access the user list to view all registered users:
+
+```javascript
+GET /usuarios
+```
+
+This endpoint returns a list of all users with their details:
+- ID document (cédula)
+- Full name (nombre, apellido)
+- Position (cargo)
+- User type (tipo_usuario)
+- Username (indicador)
+
+## Creating users
+
+<Steps>
+  <Step title="Access the create user form">
+    Navigate to `/usuarios/add` to access the user creation form.
+  </Step>
+  
+  <Step title="Fill in user information">
+    Provide the required information:
+    
+    <ParamField path="nombre" type="string" required>
+      User's first name (2-50 characters, letters only)
+    </ParamField>
+    
+    <ParamField path="apellido" type="string" required>
+      User's last name (2-50 characters, letters only)
+    </ParamField>
+    
+    <ParamField path="cedula" type="string" required>
+      ID document number (7-9 digits)
+    </ParamField>
+    
+    <ParamField path="cargo" type="string" required>
+      Job position (4-50 characters, no numbers)
+    </ParamField>
+    
+    <ParamField path="typeUser" type="string" required>
+      User role: Administrador, Analista, or Desarrollador
+    </ParamField>
+  </Step>
+  
+  <Step title="System generates username">
+    The system automatically generates a unique username from the user's name:
+    
+    ```javascript
+    // Username format: SURNAME + FIRST_INITIAL
+    // Example: Nolasco Malavé → MALAVEN
+    // If MALAVEN exists, generates MALAVEN1, MALAVEN2, etc.
+    ```
+  </Step>
+  
+  <Step title="Initial password set">
+    The system automatically sets the initial password to the user's cédula number, hashed with bcrypt.
+    
+    <Note>
+    Users should change their password upon first login.
+    </Note>
+  </Step>
+</Steps>
+
+### Create user endpoint
+
+```javascript
+POST /usuarios/add
+Content-Type: application/x-www-form-urlencoded
+
+nombre=Nolasco&apellido=Malavé&cedula=12345678&cargo=Analista&typeUser=Analista
+```
+
+### Validation rules
+
+<Accordion title="Name validation (nombre/apellido)">
+- Must contain only letters and hyphens
+- Minimum 2 characters
+- Maximum 50 characters
+- Cannot contain numbers or special characters (except hyphen)
+- First letter automatically capitalized
+</Accordion>
+
+<Accordion title="ID document validation (cedula)">
+- Must be numeric only
+- Minimum 7 digits (valid working age)
+- Maximum 9 digits
+- Must be unique (cannot register duplicate cédulas)
+- Example validation error: "¡Actualmente no existen más de 999.999.999 personas registradas en los registros de ciudadanía venezolana!"
+</Accordion>
+
+<Accordion title="Position validation (cargo)">
+- Minimum 4 characters
+- Maximum 50 characters
+- Cannot contain numbers
+- Letters and spaces allowed
+</Accordion>
+
+<Accordion title="User type validation (typeUser)">
+- Must be exactly: "Administrador", "Analista", or "Desarrollador"
+- Case-sensitive
+- No other values accepted
+</Accordion>
+
+## Editing users
+
+<Steps>
+  <Step title="Access the edit form">
+    Navigate to `/usuarios/edit/:username` where `:username` is the user's indicador.
+  </Step>
+  
+  <Step title="Modify user information">
+    Update any of the user fields (same validation rules apply).
+    
+    <Warning>
+    You cannot edit:
+    - Your own account
+    - Desarrollador accounts (unless you are also a Desarrollador)
+    - The username (indicador) - this is read-only
+    </Warning>
+  </Step>
+  
+  <Step title="Submit changes">
+    Submit the form to update the user's information.
+  </Step>
+</Steps>
+
+### Edit user endpoint
+
+```javascript
+POST /usuarios/edit/:username
+Content-Type: application/x-www-form-urlencoded
+
+nombre=Nolasco&apellido=Malavé&cedula=12345678&cargo=Senior Analista&typeUser=Administrador&username=MALAVEN
+```
+
+## Deleting users
+
+Administrators can delete user accounts:
+
+```javascript
+POST /usuarios/delete
+Content-Type: application/x-www-form-urlencoded
+
+username=MALAVEN
+```
+
+<Warning>
+**Deletion restrictions:**
+- Cannot delete your own account
+- Cannot delete Desarrollador accounts (unless you are also a Desarrollador)
+- Deletion is permanent and cannot be undone
+</Warning>
+
+## Username generation logic
+
+The system generates unique usernames automatically:
+
+```javascript
+// Step 1: Create base username
+// Format: LASTNAME + FIRST_INITIAL (uppercase, no accents)
+// Example: "Malavé" + "N" → "MALAVEN"
+
+// Step 2: Check for existing usernames
+// Queries database for usernames starting with "MALAVEN"
+
+// Step 3: Add number suffix if needed
+// If MALAVEN exists: MALAVEN1
+// If MALAVEN1 exists: MALAVEN2
+// And so on...
+```
+
+<Accordion title="Username generation example code">
+```javascript
+// From src/routes/usuarios.js
+let username = gf.destilde(apellido).toUpperCase() + 
+               gf.destilde(nombre.charAt(0)).toUpperCase();
+
+await pool.query('SELECT username FROM usuarios WHERE username LIKE ?', 
+  [username+'%'], async (err, result, fields) => {
+    let usernames = [];
+    for(let i=0; i<result.length; i++){
+      usernames.push(result[i].username.toLowerCase());
+    }
+    usernames.sort();
+    username = gf.username(nombre, apellido, usernames).toUpperCase();
+});
+```
+</Accordion>
+
+## Common errors
+
+| Error | Solution |
+|-------|----------|
+| ¡La cédula introducida ya se encuentra registrada! | Each cédula can only be registered once |
+| ¡El nombre del usuario no debe contener números! | Remove numbers from name fields |
+| ¡El usuario debe estar apto para trabajar! | Cédula must be at least 7 digits |
+| ¡El cargo no debe contener caracteres numéricos! | Position field cannot contain numbers |
+| Los únicos valores aceptados como tipo de usuario... | Use exactly: Administrador, Analista, or Desarrollador |
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Initial passwords" icon="key">
+    Inform users to change their password (initially set to their cédula) on first login.
+  </Card>
+  <Card title="Role assignment" icon="user-tag">
+    Assign the minimum role needed. Most users should be Analistas.
+  </Card>
+  <Card title="Regular audits" icon="clipboard-check">
+    Periodically review user accounts and remove inactive users.
+  </Card>
+  <Card title="Cédula privacy" icon="user-lock">
+    Handle ID documents carefully as they are sensitive personal information.
+  </Card>
+</CardGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Roles and permissions" icon="shield" href="/admin/roles-permissions">
+    Learn more about user roles and access control
+  </Card>
+  <Card title="Authentication" icon="lock" href="/guides/authentication">
+    Understand the authentication system
+  </Card>
+</CardGroup>

@@ -1,0 +1,293 @@
+---
+title: 'User Management'
+description: 'Endpoints for creating, updating, and managing users'
+---
+
+<Note>
+All user management endpoints require authentication and are restricted to Administrador or Desarrollador roles.
+</Note>
+
+## List Users
+
+### GET /usuarios
+
+Retrieve all users in the system.
+
+**Authentication Required**: Administrador or Desarrollador role
+
+**Response**: Renders users view with all user records
+
+**Example Request**
+
+```bash
+curl http://localhost/usuarios \
+  --cookie "connect.sid=SESSION_ID"
+```
+
+## Get Add User Form
+
+### GET /usuarios/add
+
+Get the form to add a new user.
+
+**Authentication Required**: Administrador or Desarrollador role
+
+**Response**: Renders add user form view
+
+## Create User
+
+### POST /usuarios/add
+
+Create a new user account.
+
+**Authentication Required**: Administrador or Desarrollador role
+
+**Request Body**
+
+<ParamField body="nombre" type="string" required>
+  First name (2-50 characters, letters and hyphens only)
+</ParamField>
+
+<ParamField body="apellido" type="string" required>
+  Last name (2-50 characters, letters and hyphens only)
+</ParamField>
+
+<ParamField body="cedula" type="string" required>
+  ID document number (7-9 digits)
+</ParamField>
+
+<ParamField body="cargo" type="string" required>
+  Position/role (4-50 characters, no numbers)
+</ParamField>
+
+<ParamField body="typeUser" type="string" required>
+  User type: "Administrador", "Analista", or "Desarrollador"
+</ParamField>
+
+**Validation Rules**
+
+**nombre / apellido**:
+- Must be 2-50 characters
+- Only letters and hyphens allowed
+- No numbers or special characters (except hyphen)
+
+**cedula**:
+- Must be numeric
+- 7-9 digits only
+- Must be unique (not already registered)
+
+**cargo**:
+- Minimum 4 characters
+- Maximum 50 characters
+- No numeric characters
+
+**typeUser**:
+- Must be exactly: "Administrador", "Analista", or "Desarrollador"
+
+**Username Generation**
+
+The system automatically generates usernames using the format:
+- Base format: `APELLIDO` + first letter of `NOMBRE` (uppercase)
+- If username exists, adds sequential number (e.g., PEREZJ, PEREZJ1, PEREZJ2)
+- Accents are removed (e.g., PÉREZ becomes PEREZ)
+
+**Password**
+
+Initial password is set to the user's `cedula` (ID document number), hashed with bcrypt.
+
+**Response**
+
+<ResponseField name="redirect" type="string">
+  On success, redirects to /usuarios
+</ResponseField>
+
+<ResponseField name="errors.nombre" type="string">
+  Name validation error
+</ResponseField>
+
+<ResponseField name="errors.apellido" type="string">
+  Last name validation error
+</ResponseField>
+
+<ResponseField name="errors.cedula" type="string">
+  ID document validation error
+</ResponseField>
+
+<ResponseField name="errors.cargo" type="string">
+  Position validation error
+</ResponseField>
+
+<ResponseField name="errors.typeUser" type="string">
+  User type validation error
+</ResponseField>
+
+**Example Request**
+
+```bash
+curl -X POST http://localhost/usuarios/add \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --cookie "connect.sid=SESSION_ID" \
+  -d "nombre=Juan" \
+  -d "apellido=Pérez" \
+  -d "cedula=12345678" \
+  -d "cargo=Analista de Sistemas" \
+  -d "typeUser=Analista"
+```
+
+**Example Response**
+
+<Tabs>
+  <Tab title="Success">
+    Redirects to `/usuarios` with new user created.
+    
+    Generated username: `PEREZJ`
+    
+    Initial password: `12345678` (same as cedula)
+  </Tab>
+  <Tab title="Duplicate ID">
+    ```json
+    {
+      "cedula": "¡La cédula introducida ya se encuentra registrada!"
+    }
+    ```
+  </Tab>
+  <Tab title="Validation Errors">
+    ```json
+    {
+      "nombre": "¡El nombre del usuario no debe contener números ni caractéres especiales, a excepción del caracter '-'!",
+      "cedula": "¡El usuario debe estar apto para trabajar!",
+      "cargo": "¡El cargo no debe contener caracteres numéricos!"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Get Edit User Form
+
+### GET /usuarios/edit/:username
+
+Get the form to edit an existing user.
+
+**Authentication Required**: Administrador or Desarrollador role
+
+**URL Parameters**
+
+<ParamField path="username" type="string" required>
+  Username of user to edit
+</ParamField>
+
+**Restrictions**:
+- Cannot edit your own account
+- Cannot edit Desarrollador accounts
+
+**Response**: Renders edit user form with current user data
+
+## Update User
+
+### POST /usuarios/edit/:username
+
+Update an existing user's information.
+
+**Authentication Required**: Administrador or Desarrollador role
+
+**URL Parameters**
+
+<ParamField path="username" type="string" required>
+  Username of user to edit
+</ParamField>
+
+**Request Body**
+
+Same fields as POST /usuarios/add, plus:
+
+<ParamField body="username" type="string" required>
+  Current username (for verification)
+</ParamField>
+
+**Validation**: Same rules as create user
+
+**Note**: If cedula is changed, it must not belong to another user
+
+**Response**
+
+<ResponseField name="redirect" type="string">
+  On success, redirects to /usuarios
+</ResponseField>
+
+**Example Request**
+
+```bash
+curl -X POST http://localhost/usuarios/edit/PEREZJ \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --cookie "connect.sid=SESSION_ID" \
+  -d "nombre=Juan Carlos" \
+  -d "apellido=Pérez" \
+  -d "cedula=12345678" \
+  -d "cargo=Analista Senior" \
+  -d "typeUser=Analista" \
+  -d "username=PEREZJ"
+```
+
+## Delete User
+
+### POST /usuarios/delete
+
+Delete a user from the system.
+
+**Authentication Required**: Administrador or Desarrollador role
+
+**Request Body**
+
+<ParamField body="username" type="string" required>
+  Username of user to delete
+</ParamField>
+
+**Response**
+
+<ResponseField name="success" type="string">
+  "¡El usuario ha sido eliminado correctamente!"
+</ResponseField>
+
+**Example Request**
+
+```bash
+curl -X POST http://localhost/usuarios/delete \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --cookie "connect.sid=SESSION_ID" \
+  -d "username=PEREZJ"
+```
+
+**Example Response**
+
+```json
+{
+  "success": "¡El usuario ha sido eliminado correctamente!"
+}
+```
+
+## User Type Roles
+
+<CardGroup cols={3}>
+  <Card title="Desarrollador" icon="code">
+    Full system access, highest privilege level
+  </Card>
+  <Card title="Administrador" icon="user-gear">
+    Can manage users and approve permits
+  </Card>
+  <Card title="Analista" icon="user">
+    Can create and edit permits, limited administrative access
+  </Card>
+</CardGroup>
+
+## Username Generation Examples
+
+| Name | Last Name | Base Username | If Exists | Final Username |
+|------|-----------|---------------|-----------|----------------|
+| Juan | Pérez | PEREZJ | No | PEREZJ |
+| José | Pérez | PEREZJ | Yes (1 exists) | PEREZJ1 |
+| María | González | GONZALEZM | No | GONZALEZM |
+| André | Müller | MULLERA | No | MULLERA |
+
+<Note>
+Accents and special characters are automatically removed from usernames.
+</Note>

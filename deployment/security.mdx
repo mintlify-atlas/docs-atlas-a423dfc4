@@ -1,0 +1,527 @@
+---
+title: 'Security'
+description: 'Security features, authentication, and best practices for production deployment'
+---
+
+## Authentication
+
+The Municipal Permits System implements secure user authentication using industry-standard practices.
+
+### Password Hashing
+
+All passwords are hashed using **bcryptjs** with a salt factor of 10 rounds before storage.
+
+**File**: `src/routes/usuarios.js:137`
+
+```javascript
+const bcrypt = require('bcryptjs');
+
+// Hash password during user creation
+let salt = bcrypt.genSaltSync(10);
+let hash = bcrypt.hashSync(cedula, salt);
+
+// Store hash in database
+await pool.query(
+  'INSERT INTO usuarios (idDocument, nombre, apellido, cargo, tipo_usuario, username, password) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  [cedula, nombre, apellido, cargo, typeUser, username, hash]
+);
+```
+
+**File**: `src/lib/createAdmin.js:8`
+
+```javascript
+// Admin user creation with bcrypt
+bcrypt.hashSync('ADMINS', bcrypt.genSaltSync(10))
+```
+
+<Info>
+  bcrypt automatically generates a unique salt for each password, making rainbow table attacks ineffective.
+</Info>
+
+### Password Verification
+
+**File**: `src/routes/usuarios.js:403`
+
+```javascript
+// Compare submitted password with stored hash
+if (bcrypt.compareSync(password, result[0].password) == true) {
+  req.session.usuario = {
+    indicador: result[0].username,
+    nombre: result[0].nombre,
+    apellido: result[0].apellido,
+    cargo: result[0].cargo,
+    tipo_usuario: result[0].tipo_usuario,
+  };
+  res.send({ success: '¡Usuario Correcto!' });
+} else {
+  errors.password = '¡Contraseña incorrecta!';
+  res.send(errors);
+}
+```
+
+### Password Requirements
+
+**File**: `src/routes/usuarios.js:379-388`
+
+```javascript
+// Password validation rules
+if (password.length < 1) {
+  errors.password = '¡Debe introducir la contraseña!';
+  valid = false;
+} else if (password.length < 6) {
+  errors.password = '¡La contraseña debe contener, por lo menos, 6 caracteres!';
+  valid = false;
+} else if (password.length > 30) {
+  errors.password = '¡La contraseña no debe contener más de 30 caracteres!';
+  valid = false;
+}
+```
+
+<Warning>
+  The current password requirements are minimal. For production, consider implementing:
+  - Minimum 8-12 characters
+  - Mixed case letters
+  - Numbers and special characters
+  - Password strength meter
+  - Password history (prevent reuse)
+</Warning>
+
+## Session Management
+
+Sessions are managed using **express-session** with server-side storage.
+
+**File**: `src/index.js:41-46`
+
+```javascript
+const session = require('express-session');
+
+app.use(session({
+  key: 'permisos_municipales_pass',
+  secret: 'permisos_municipales',
+  resave: false,
+  saveUninitialized: false
+}));
+```
+
+<ParamField path="key" type="string">
+  Session cookie name sent to the client
+</ParamField>
+
+<ParamField path="secret" type="string">
+  Secret used to sign the session ID cookie (MUST be changed in production)
+</ParamField>
+
+<ParamField path="resave" type="boolean" default={false}>
+  Prevents saving session on every request
+</ParamField>
+
+<ParamField path="saveUninitialized" type="boolean" default={false}>
+  Prevents creating session until something is stored
+</ParamField>
+
+### Session Security Best Practices
+
+<Warning>
+  For production deployment:
+</Warning>
+
+<Steps>
+  <Step title="Use Strong Session Secret">
+    Generate a cryptographically secure random string:
+    
+    ```javascript
+    const crypto = require('crypto');
+    const secret = crypto.randomBytes(32).toString('hex');
+    ```
+  </Step>
+
+  <Step title="Configure Cookie Security">
+    Add secure cookie settings:
+    
+    ```javascript
+    app.use(session({
+      key: 'permisos_municipales_pass',
+      secret: process.env.SESSION_SECRET,
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: true,        // HTTPS only
+        httpOnly: true,      // Prevent XSS
+        maxAge: 3600000,     // 1 hour
+        sameSite: 'strict'   // CSRF protection
+      }
+    }));
+    ```
+  </Step>
+
+  <Step title="Implement Session Store">
+    Use Redis or MySQL session store for production:
+    
+    ```javascript
+    const MySQLStore = require('express-mysql-session')(session);
+    
+    const sessionStore = new MySQLStore({
+      host: process.env.DB_HOST,
+      port: 3306,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME
+    });
+    
+    app.use(session({
+      store: sessionStore,
+      // ... other options
+    }));
+    ```
+  </Step>
+</Steps>
+
+## Role-Based Access Control
+
+The application implements role-based authorization using custom middleware.
+
+### User Roles
+
+Three user roles are defined in the system:
+
+<CardGroup cols={3}>
+  <Card title="Desarrollador" icon="code">
+    Full system access, including user management
+  </Card>
+  <Card title="Administrador" icon="user-shield">
+    Manage users and approve permits
+  </Card>
+  <Card title="Analista" icon="user">
+    Create and view permits (limited access)
+  </Card>
+</CardGroup>
+
+### Session Verification Middleware
+
+**File**: `src/middlewares/verifySession.js`
+
+```javascript
+module.exports = function(req, res, next) {
+  if (!req.session.usuario) {
+    return res.status(401, '¡No ha iniciado sessión!');
+  }
+  return next();
+};
+```
+
+This middleware ensures users are authenticated before accessing protected routes.
+
+### Role Verification Middleware
+
+**File**: `src/middlewares/verifyRoles.js`
+
+```javascript
+module.exports = function verifyRoles(...roles) {
+  return (req, res, next) => {
+    if (!roles.some(role => role === req.session.usuario.tipo_usuario)) {
+      return res.status(403).json({
+        message: '¡Usted no tiene los permisos necesarios para realizar ésta operación!'
+      });
+    }
+    return next();
+  };
+};
+```
+
+### Usage Example
+
+**File**: `src/routes/bebidas.js:13-14`
+
+```javascript
+const verifySession = require('../middlewares/verifySession');
+const verifyRoles = require('../middlewares/verifyRoles');
+
+// Protect routes with role-based access
+router.get('/admin', 
+  verifySession, 
+  verifyRoles('Desarrollador', 'Administrador'), 
+  (req, res) => {
+    // Only Desarrollador and Administrador can access
+  }
+);
+```
+
+## File Upload Security
+
+File uploads are handled securely using Multer with configurable storage and validation.
+
+**File**: `src/routes/bebidas.js:17-24`
+
+```javascript
+const multer = require('multer');
+
+const storageProyect = multer.diskStorage({
+  destination: path.join(__dirname, '../public/server-files/temps/'),
+  filename: (req, file, funcion) => {
+    if ('usuario' in req.session) {
+      funcion(null, file.fieldname + '_de_pago_' + Date.now() + 
+              file.originalname.substr(file.originalname.lastIndexOf('.')));
+    }
+  }
+});
+
+const uploadProyect = multer({
+  storage: storageProyect
+}).single('comprobante');
+```
+
+### File Upload Best Practices
+
+<Warning>
+  Implement additional file upload security measures:
+</Warning>
+
+<Steps>
+  <Step title="Validate File Types">
+    ```javascript
+    const upload = multer({
+      storage: storage,
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|pdf/;
+        const extname = allowedTypes.test(
+          path.extname(file.originalname).toLowerCase()
+        );
+        const mimetype = allowedTypes.test(file.mimetype);
+        
+        if (mimetype && extname) {
+          return cb(null, true);
+        }
+        cb(new Error('Invalid file type. Only JPEG, PNG and PDF allowed.'));
+      }
+    });
+    ```
+  </Step>
+
+  <Step title="Limit File Size">
+    ```javascript
+    const upload = multer({
+      storage: storage,
+      limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+      }
+    });
+    ```
+  </Step>
+
+  <Step title="Sanitize Filenames">
+    ```javascript
+    filename: (req, file, cb) => {
+      const sanitized = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
+      cb(null, Date.now() + '-' + sanitized);
+    }
+    ```
+  </Step>
+
+  <Step title="Store Outside Web Root">
+    Store uploaded files outside the public directory and serve them through controlled routes:
+    
+    ```javascript
+    app.get('/files/:filename', verifySession, (req, res) => {
+      const filePath = path.join(__dirname, 'private/uploads', req.params.filename);
+      res.sendFile(filePath);
+    });
+    ```
+  </Step>
+</Steps>
+
+## SQL Injection Prevention
+
+The application uses parameterized queries to prevent SQL injection attacks.
+
+### Safe Query Pattern
+
+**File**: `src/routes/usuarios.js:394`
+
+```javascript
+// ✅ SAFE: Using parameterized queries
+await pool.query(
+  'SELECT * FROM usuarios WHERE username=?', 
+  [indicador], 
+  (err, result) => {
+    // Handle result
+  }
+);
+```
+
+<Warning>
+  Never concatenate user input directly into SQL queries:
+</Warning>
+
+```javascript
+// ❌ UNSAFE: String concatenation
+const query = 'SELECT * FROM usuarios WHERE username="' + username + '"';
+
+// ✅ SAFE: Parameterized query
+const query = 'SELECT * FROM usuarios WHERE username=?';
+await pool.query(query, [username]);
+```
+
+### Input Sanitization
+
+User inputs are sanitized before processing:
+
+**File**: `src/routes/usuarios.js:363`
+
+```javascript
+let indicador = gf.sanitizeString(indicador).toUpperCase();
+```
+
+The `gf.sanitizeString()` function removes potentially dangerous characters.
+
+## CSRF Protection
+
+<Warning>
+  The current implementation does not include CSRF protection. For production:
+</Warning>
+
+Implement CSRF tokens using the `csurf` package:
+
+```javascript
+const csrf = require('csurf');
+const csrfProtection = csrf({ cookie: true });
+
+app.use(csrfProtection);
+
+app.get('/form', (req, res) => {
+  res.render('form', { csrfToken: req.csrfToken() });
+});
+
+app.post('/submit', (req, res) => {
+  // CSRF token automatically validated
+});
+```
+
+Include the token in forms:
+
+```html
+<form method="POST" action="/submit">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <!-- other fields -->
+</form>
+```
+
+## Security Headers
+
+Implement security headers using Helmet:
+
+```javascript
+const helmet = require('helmet');
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    }
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
+}));
+```
+
+## Rate Limiting
+
+Protect against brute force attacks with rate limiting:
+
+```javascript
+const rateLimit = require('express-rate-limit');
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts
+  message: 'Too many login attempts, please try again later'
+});
+
+app.post('/usuarios/login', loginLimiter, (req, res) => {
+  // Login logic
+});
+```
+
+## Production Security Checklist
+
+<AccordionGroup>
+  <Accordion title="Environment & Configuration">
+    - [ ] Change default admin password
+    - [ ] Use environment variables for sensitive data
+    - [ ] Generate strong random session secret
+    - [ ] Enable HTTPS/TLS
+    - [ ] Set secure cookie options
+    - [ ] Disable unnecessary services
+  </Accordion>
+
+  <Accordion title="Authentication & Authorization">
+    - [ ] Implement stronger password requirements
+    - [ ] Add password reset functionality
+    - [ ] Implement account lockout after failed attempts
+    - [ ] Add two-factor authentication (2FA)
+    - [ ] Log authentication events
+    - [ ] Implement session timeout
+  </Accordion>
+
+  <Accordion title="Data Protection">
+    - [ ] Use parameterized queries (already implemented)
+    - [ ] Validate all user inputs
+    - [ ] Implement CSRF protection
+    - [ ] Add XSS protection headers
+    - [ ] Encrypt sensitive data at rest
+    - [ ] Use HTTPS for data in transit
+  </Accordion>
+
+  <Accordion title="File Upload Security">
+    - [ ] Validate file types and extensions
+    - [ ] Limit file sizes
+    - [ ] Store files outside web root
+    - [ ] Scan uploaded files for malware
+    - [ ] Implement access controls for files
+  </Accordion>
+
+  <Accordion title="Monitoring & Logging">
+    - [ ] Log all security events
+    - [ ] Monitor failed login attempts
+    - [ ] Set up error tracking (e.g., Sentry)
+    - [ ] Implement audit trails
+    - [ ] Regular security audits
+    - [ ] Keep dependencies updated
+  </Accordion>
+</AccordionGroup>
+
+## Security Updates
+
+Regularly update dependencies to patch security vulnerabilities:
+
+```bash
+# Check for outdated packages
+npm outdated
+
+# Update packages
+npm update
+
+# Check for security vulnerabilities
+npm audit
+
+# Fix vulnerabilities automatically
+npm audit fix
+```
+
+## Reporting Security Issues
+
+If you discover a security vulnerability:
+
+1. Do not disclose publicly
+2. Contact the development team immediately
+3. Provide detailed information about the vulnerability
+4. Allow time for the issue to be addressed
+
+<Card title="Need Help?" icon="question" href="/introduction">
+  Contact the development team for security concerns
+</Card>

@@ -1,97 +1,141 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: Sistema de Permisos Municipales
+mode: custom
 ---
 
-## Setting up
+<div className="relative py-20 overflow-hidden dark:bg-[#0f1117] bg-white">
+  <div className="absolute inset-0 bg-gradient-to-br dark:from-[#1a1d27] dark:via-[#0f1117] dark:to-[#0f1117] from-blue-50 via-white to-white"></div>
+  <div className="relative max-w-6xl mx-auto px-6">
+    <div className="text-center">
+      <h1 className="text-5xl md:text-6xl font-bold dark:text-white text-gray-900 mb-6">
+        Sistema de Permisos Municipales
+      </h1>
+      <p className="text-xl dark:text-gray-400 text-gray-600 max-w-3xl mx-auto mb-8">
+        Plataforma completa para la gestión de permisos de publicidad, bebidas alcohólicas y eventos especiales en la Alcaldía de Lechería
+      </p>
+      <div className="flex flex-wrap gap-4 justify-center">
+        <a 
+          href="/quickstart" 
+          className="inline-flex items-center px-6 py-3 rounded-lg bg-[#2563eb] hover:bg-[#1e40af] text-white font-semibold transition-colors no-underline"
+        >
+          Comenzar
+        </a>
+        <a 
+          href="/introduction" 
+          className="inline-flex items-center px-6 py-3 rounded-lg border dark:border-[#27272a] border-gray-300 dark:bg-[#1a1d27] bg-white dark:hover:border-[#2563eb] hover:border-[#2563eb] dark:text-gray-100 text-gray-900 font-semibold transition-colors no-underline"
+        >
+          Ver documentación
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl font-semibold dark:text-white text-gray-900 mb-4">Inicio rápido</h2>
+    <p className="text-base dark:text-gray-400 text-gray-600">Configure y comience a usar el sistema en minutos</p>
+  </div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+  <Steps>
+    <Step title="Acceda al sistema">
+      Inicie sesión con sus credenciales de usuario. El sistema soporta tres roles: Administrador, Analista y Desarrollador.
+      
+      ```bash
+      POST /usuarios/login
+      Content-Type: application/json
 
-## Make it yours
+      {
+        "indicador": "MALAVEN",
+        "password": "su_contraseña"
+      }
+      ```
+    </Step>
+    <Step title="Cree su primer permiso">
+      Acceda al módulo de permisos correspondiente y complete el formulario con la información del solicitante y los detalles del permiso.
+      
+      <Note>
+        El sistema valida automáticamente los documentos de pago y genera códigos únicos para cada permiso basados en el año y número secuencial.
+      </Note>
+    </Step>
+    <Step title="Gestione el flujo de aprobación">
+      Los permisos pasan por un flujo de revisión donde pueden ser aprobados o cancelados. El sistema notifica en tiempo real mediante WebSockets.
+      
+      ```javascript
+      // El sistema emite eventos en tiempo real
+      socket.on('bebidas:nuevo-permiso', (data) => {
+        // Actualización automática de la interfaz
+        console.log('Nuevo permiso:', data);
+      });
+      ```
+    </Step>
+    <Step title="Genere reportes">
+      Acceda al módulo de reportes para exportar permisos en formato PDF con toda la información registrada y el estado actual.
+    </Step>
+  </Steps>
+</div>
 
-Design a docs site that looks great and empowers your users.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl font-semibold dark:text-white text-gray-900 mb-4">Características principales</h2>
+    <p className="text-base dark:text-gray-400 text-gray-600">Todo lo que necesita para gestionar permisos municipales</p>
+  </div>
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+  <CardGroup cols={3}>
+    <Card title="Permisos de bebidas alcohólicas" icon="wine-glass" href="/permits/alcoholic-beverages">
+      Gestión completa de permisos para la venta de bebidas alcohólicas con validación de documentos y fechas.
+    </Card>
+    <Card title="Publicidad y propaganda" icon="bullhorn" href="/permits/advertising-propaganda">
+      Sistema de permisos para material publicitario: volantes, afiches, pendones, stands y más.
+    </Card>
+    <Card title="Eventos especiales" icon="calendar-days" href="/permits/special-events">
+      Administración de permisos para eventos con servicios de comida, bebidas y artículos varios.
+    </Card>
+    <Card title="Control de acceso" icon="shield" href="/guides/authentication">
+      Sistema robusto de autenticación con bcrypt y gestión de roles y permisos.
+    </Card>
+    <Card title="Actualizaciones en tiempo real" icon="bolt" href="/technical/websockets">
+      WebSockets para notificaciones instantáneas de nuevos permisos y cambios de estado.
+    </Card>
+    <Card title="Generación de reportes" icon="file-pdf" href="/admin/reports">
+      Exportación de permisos y reportes completos en formato PDF con toda la información.
+    </Card>
+  </CardGroup>
+</div>
 
-## Create beautiful pages
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl font-semibold dark:text-white text-gray-900 mb-4">Explore por categoría</h2>
+    <p className="text-base dark:text-gray-400 text-gray-600">Encuentre la información que necesita</p>
+  </div>
 
-Everything you need to create world-class documentation.
+  <CardGroup cols={2}>
+    <Card title="Guías de usuario" icon="book-open" href="/guides/authentication">
+      Aprenda a usar el sistema paso a paso, desde la autenticación hasta la gestión de permisos.
+    </Card>
+    <Card title="Administración" icon="gear" href="/admin/roles-permissions">
+      Gestione usuarios, roles, permisos y configure el sistema según sus necesidades.
+    </Card>
+    <Card title="Referencia técnica" icon="code" href="/technical/architecture">
+      Documentación técnica sobre la arquitectura, base de datos y despliegue del sistema.
+    </Card>
+    <Card title="API" icon="terminal" href="/api/authentication">
+      Referencia completa de todos los endpoints disponibles para integración.
+    </Card>
+  </CardGroup>
+</div>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<div className="mt-20 mb-16 max-w-5xl mx-auto px-6">
+  <div className="dark:bg-[#1a1d27] bg-gray-50 rounded-2xl p-10 dark:border dark:border-[#27272a] border border-gray-200 text-center">
+    <h2 className="text-2xl font-semibold dark:text-white text-gray-900 mb-4">¿Listo para comenzar?</h2>
+    <p className="dark:text-gray-400 text-gray-600 mb-6 max-w-2xl mx-auto">
+      Siga nuestra guía de inicio rápido para configurar el sistema y crear su primer permiso en minutos.
+    </p>
+    <a 
+      href="/quickstart" 
+      className="inline-flex items-center px-6 py-3 rounded-lg bg-[#2563eb] hover:bg-[#1e40af] text-white font-semibold transition-colors no-underline"
+    >
+      Guía de inicio rápido
+    </a>
+  </div>
+</div>

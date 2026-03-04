@@ -1,80 +1,314 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get started with the municipal permits management system in minutes
 ---
 
-## Get started in three steps
+This guide will walk you through accessing the system, navigating the interface, creating your first permit, and reviewing permit applications.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, ensure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+- A valid username and password provided by your system administrator
+- Access to the system URL (default port: 4000)
+- A modern web browser with JavaScript enabled
+
+<Warning>
+  JavaScript must be enabled in your browser to use this application. Contact the Technology and Systems Directorate if you need assistance.
+</Warning>
+
+## Step 1: Access the system
+
+Authenticate with your credentials to access the permit management interface.
+
+### Login process
+
+1. Navigate to the system URL in your web browser
+2. Enter your username (indicator)
+3. Enter your password (minimum 6 characters)
+4. Click **Iniciar** to log in
+
+<Steps>
+  <Step title="Navigate to login page">
+    Open your browser and go to the system URL. You'll see the login form:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    - **Nombre de Usuario**: Your user indicator (letters only, 3-51 characters)
+    - **Contraseña**: Your password (6-30 characters)
+  </Step>
+  
+  <Step title="Submit credentials">
+    The system validates your credentials using bcrypt password verification:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```javascript
+    // Login endpoint: /usuarios/login
+    router.post('/login', async (req, res) => {
+      const { indicador, password } = req.body;
+      
+      await pool.query('SELECT * FROM usuarios WHERE username=?', 
+        [indicador], async (err, result) => {
+          if (bcrypt.compareSync(password, result[0].password)) {
+            req.session.usuario = {
+              nombre: result[0].nombre,
+              apellido: result[0].apellido,
+              tipo_usuario: result[0].tipo_usuario,
+              indicador: result[0].username
+            };
+            res.send({ success: 'Logged in successfully' });
+          }
+        });
+    });
+    ```
+  </Step>
+  
+  <Step title="Access granted">
+    After successful authentication, you'll be redirected to the home dashboard showing the three permit modules.
+  </Step>
+</Steps>
 
-### Step 2: Deploy your changes
+## Step 2: Navigate the interface
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+Understand the main sections of the system and how to navigate between permit types.
+
+### Main dashboard
+
+After logging in, you'll see three main modules:
+
+<CardGroup cols={3}>
+  <Card title="Venta de Bebidas Alcohólicas" icon="wine-glass" href="/permits/alcoholic-beverages">
+    Manage permits for alcoholic beverage sales
+  </Card>
+  <Card title="Eventos Especiales" icon="calendar" href="/permits/special-events">
+    Manage permits for special events
+  </Card>
+  <Card title="Publicidad y Propaganda" icon="bullhorn" href="/permits/advertising-propaganda">
+    Manage permits for advertising and propaganda
+  </Card>
+</CardGroup>
+
+### Navigation menu
+
+The top navigation bar provides quick access to:
+
+- **Inicio**: Return to the main dashboard
+- **Venta de Bebidas Alcohólicas**: Alcoholic beverages permits
+- **Eventos Especiales**: Special events permits
+- **Publicidad y Propaganda**: Advertising permits
+- **Opciones**: Dropdown menu with:
+  - **Usuarios**: User management (Administrators/Developers only)
+  - **Cambio de Contraseña**: Change your password
+  - **Cerrar Sesión**: Log out of the system
+
+<Note>
+  The user management option is only visible to users with Administrator or Developer roles.
+</Note>
+
+## Step 3: Create your first permit
+
+Walk through creating a new advertising permit application.
+
+### Navigate to permit module
+
+1. From the dashboard, click **Publicidad y Propaganda**
+2. You'll see a list of existing permits with their status
+3. Click **Nuevo Permiso** to create a new application
+
+### Fill out the permit form
+
+<Steps>
+  <Step title="Enter permit dates">
+    Specify the permit validity period:
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    - **Habilitación**: Start date for the permit
+    - **Vencimiento**: Expiration date
+    - **Horario**: Time schedule for the permitted activity
+  </Step>
+  
+  <Step title="Add applicant information">
+    Enter the details of the person requesting the permit:
+    
+    - **Nombre**: First name
+    - **Apellido**: Last name
+    - **Cédula**: ID document number
+    - **Teléfono**: Phone number
+    - **Habitación**: Address/location
+    - **Sector Permisado**: Permitted area/sector
+  </Step>
+  
+  <Step title="Specify advertising materials">
+    Indicate the quantities of each advertising type:
+    
+    - Volantes (flyers)
+    - Afiches (posters)
+    - Pendones (banners)
+    - Habladores (shelf talkers)
+    - Stands
+    - Calcomanías (stickers)
+    - Banderolas (flags)
+    - Otros (other - with description)
+  </Step>
+  
+  <Step title="Upload payment receipt">
+    Attach the payment verification document:
+    
+    ```javascript
+    // File upload handling with Multer
+    const storageProyect = multer.diskStorage({
+      destination: path.join(__dirname, '../public/server-files/temps/'),
+      filename: (req, file, funcion) => {
+        funcion(null, file.fieldname + '_de_pago_' + Date.now() + 
+          file.originalname.substr(file.originalname.lastIndexOf('.')));
+      }
+    });
+    
+    const uploadProyect = multer({
+      storage: storageProyect
+    }).single('comprobante');
+    ```
+  </Step>
+  
+  <Step title="Submit the application">
+    Click **Guardar** to create the permit. The system will:
+    
+    - Generate a unique permit code (format: YYYY-XXX)
+    - Store all information in the database
+    - Notify all connected clients via Socket.io
+    - Return you to the permits list with your new permit visible
+    
+    ```javascript
+    // Permit creation endpoint: POST /publicidad_y_propaganda/add
+    router.post('/add', uploadProyect, async (req, res) => {
+      // Generate next permit code
+      let lastPermiso = fecha.getFullYear() + '-' + adaptNum(counter);
+      
+      // Insert permit into database
+      await pool.query(
+        'INSERT INTO permisos_publicidad (...) VALUES(...)',
+        values,
+        (error, resultado) => {
+          res.send({
+            success: 'Permit registered successfully',
+            permiso: lastPermiso
+          });
+        }
+      );
+    });
+    ```
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Step 4: Review and approve permits
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Learn how to review pending permits and approve them for issuance.
 
-### Step 3: Go live
+### View permit details
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+1. From the permits list, click on any permit to view its details
+2. Review all submitted information:
+   - Applicant details
+   - Permit dates and schedule
+   - Advertising materials requested
+   - Payment receipt (if uploaded)
+
+### Approve a permit
+
+<Steps>
+  <Step title="Verify information">
+    Ensure all required information is present and accurate:
+    
+    - Payment receipt is valid
+    - Dates are within acceptable range
+    - Applicant information is complete
+  </Step>
+  
+  <Step title="Upload approved permit document">
+    Attach the official approved permit document (PDF or image):
+    
+    ```javascript
+    // Approval endpoint: POST /publicidad_y_propaganda/aprobate
+    router.post('/aprobate', uploadAprobate, async (req, res) => {
+      await pool.query(
+        'UPDATE permisos_publicidad SET permiso_autorizado=?, emitido=1 WHERE id=?',
+        [req.file.filename, req.body.permiso],
+        (err, result) => {
+          res.send({
+            success: 'Permit approved successfully',
+            permiso: req.body.permiso
+          });
+        }
+      );
+    });
+    ```
+  </Step>
+  
+  <Step title="Submit approval">
+    Click **Aprobar** to mark the permit as issued. The system will:
+    
+    - Update the permit status to "Emitido" (Issued)
+    - Notify all connected users in real-time
+    - Make the approved document available for download
+  </Step>
+</Steps>
+
+### Cancel a permit (if needed)
+
+If a permit cannot be approved:
+
+1. Click **Cancelar** on the permit details
+2. Enter an observation explaining the reason
+3. Submit the cancellation
+
+```javascript
+// Cancellation endpoint: POST /publicidad_y_propaganda/cancel
+router.post('/cancel', upload.none(), async (req, res) => {
+  await pool.query(
+    'UPDATE permisos_publicidad SET cancelado=?, observacion=? WHERE id=?',
+    [1, req.body.observacion, req.body.permiso],
+    (err, result) => {
+      res.send({
+        success: 'Permit cancellation recorded',
+        permiso: req.body.permiso
+      });
+    }
+  );
+});
+```
+
+## Real-time updates
+
+All permit actions trigger real-time updates across all connected clients:
+
+```javascript
+// Client receives new permit notification
+socket.on('publicidad:nuevo-permiso', (data) => {
+  // Update UI with new permit information
+  addPermitToList(data);
+});
+
+// Client receives approval notification
+socket.on('publicidad:aprobate-permiso', (data) => {
+  // Update permit status in UI
+  updatePermitStatus(data.permiso, 'approved');
+});
+```
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
+Now that you've completed the quickstart:
 
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+- Explore the other permit types (Beverages and Events)
+- Generate PDF reports for approved permits
+- Learn about user management (Administrators only)
+- Configure system settings and preferences
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Each permit type (Beverages, Events, Advertising) follows a similar workflow with type-specific fields and requirements.
 </Note>
+
+## Need help?
+
+If you encounter issues:
+
+- Check that JavaScript is enabled in your browser
+- Verify your user role has permission for the action
+- Contact your system administrator
+- Access the help documentation via **Opciones > Ayuda**

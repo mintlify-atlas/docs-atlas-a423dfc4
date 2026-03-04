@@ -1,0 +1,348 @@
+---
+title: 'Configuration'
+description: 'Configure database connections, server settings, and environment variables'
+---
+
+## Database Configuration
+
+The application uses MySQL for data persistence. Database configuration is managed through two main files:
+
+### Connection Settings
+
+**File**: `src/keys.js`
+
+```javascript src/keys.js
+module.exports = {
+  host: 'localhost',
+  database: 'asuntos_publicos',
+  user: 'adminurbaneja',
+  password: 'Admin*app*2021',
+  multipleStatements: true
+};
+```
+
+<ParamField path="host" type="string" default="localhost">
+  MySQL server hostname
+</ParamField>
+
+<ParamField path="database" type="string" default="asuntos_publicos">
+  Database name (must match the created database)
+</ParamField>
+
+<ParamField path="user" type="string">
+  MySQL username with access to the database
+</ParamField>
+
+<ParamField path="password" type="string">
+  MySQL user password
+</ParamField>
+
+<ParamField path="multipleStatements" type="boolean" default={true}>
+  Allows executing multiple SQL statements in a single query
+</ParamField>
+
+### Database Pool
+
+**File**: `src/database.js`
+
+The application uses connection pooling for efficient database access:
+
+```javascript src/database.js
+const mysql = require('mysql');
+const { promisify } = require('util');
+
+const pool = mysql.createPool(require('./keys.js'));
+
+pool.getConnection((err, connection) => {
+  if (err) {
+    if (err.code == 'PROTOCOL_CONNECTION_LOST') {
+      console.log('¡La conexión con la Base de Datos ha sido cerrada!');
+    } else if (err.code == 'ER_CON_COUNT_ERROR') {
+      console.log('¡La Base de Datos tiene muchas conexiones!');
+    } else if (err.code == 'ECONNREFUSED') {
+      console.log('¡La conexión con la Base de Datos ha sido rechazada!');
+    }
+  } else {
+    connection.release();
+    console.log('¡Base de Datos Conectada!');
+  }
+});
+
+pool.query = promisify(pool.query);
+
+module.exports = pool;
+```
+
+<Info>
+  The pool automatically manages connections and supports promisified queries for async/await syntax.
+</Info>
+
+## Server Configuration
+
+**File**: `src/index.js`
+
+### Basic Settings
+
+```javascript src/index.js
+const app = express();
+
+// Port Configuration
+app.set('port', 4000);
+
+// View Engine
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+```
+
+<ParamField path="port" type="number" default={4000}>
+  Server port number. The application listens on this port for HTTP requests.
+</ParamField>
+
+<ParamField path="view engine" type="string" default="ejs">
+  Template engine for rendering views. The application uses EJS (Embedded JavaScript).
+</ParamField>
+
+### Session Configuration
+
+```javascript src/index.js
+app.use(session({
+  key: 'permisos_municipales_pass',
+  secret: 'permisos_municipales',
+  resave: false,
+  saveUninitialized: false
+}));
+```
+
+<ParamField path="key" type="string" default="permisos_municipales_pass">
+  Session cookie name
+</ParamField>
+
+<ParamField path="secret" type="string" default="permisos_municipales">
+  Secret used to sign the session ID cookie
+</ParamField>
+
+<ParamField path="resave" type="boolean" default={false}>
+  Forces session to be saved back to the session store
+</ParamField>
+
+<ParamField path="saveUninitialized" type="boolean" default={false}>
+  Forces uninitialized session to be saved to the store
+</ParamField>
+
+<Warning>
+  Change the session secret to a strong, random value in production. Never commit secrets to version control.
+</Warning>
+
+### Static Files
+
+```javascript src/index.js
+app.use(express.static(path.join(__dirname, 'public')));
+```
+
+Static files are served from `src/public/` directory, including:
+- CSS stylesheets
+- JavaScript files
+- Images
+- Uploaded documents
+
+## File Upload Configuration
+
+The application uses Multer for handling file uploads. Files are stored in specific directories based on permit type.
+
+### Upload Paths
+
+<CodeGroup>
+```javascript Temporary Storage
+// Path: src/public/server-files/temps/
+// Used for: Initial file upload before processing
+
+const storage = multer.diskStorage({
+  destination: path.join(__dirname, '../public/server-files/temps/'),
+  filename: (req, file, cb) => {
+    cb(null, file.fieldname + '_de_pago_' + Date.now() + 
+       file.originalname.substr(file.originalname.lastIndexOf('.')));
+  }
+});
+```
+
+```javascript Final Storage
+// Alcoholic Beverages
+// Path: src/public/server-files/asuntos_publicos/permisos_municipales/bebidas/
+
+// Events
+// Path: src/public/server-files/asuntos_publicos/permisos_municipales/eventos/
+
+// Advertising
+// Path: src/public/server-files/asuntos_publicos/permisos_municipales/publicidad/
+```
+</CodeGroup>
+
+### File Naming Convention
+
+Uploaded files are automatically renamed with timestamps:
+
+- **Payment receipts**: `comprobante_de_pago_[timestamp].[ext]`
+- **Authorized permits**: `permiso_autorizado[timestamp].[ext]`
+
+This prevents filename collisions and maintains file organization.
+
+## Environment Variables
+
+For production deployments, use environment variables instead of hardcoded values:
+
+<CodeGroup>
+```javascript Development (.env)
+DB_HOST=localhost
+DB_NAME=asuntos_publicos
+DB_USER=adminurbaneja
+DB_PASSWORD=Admin*app*2021
+PORT=4000
+SESSION_SECRET=your_strong_random_secret
+NODE_ENV=development
+```
+
+```javascript Production (.env)
+DB_HOST=your_production_host
+DB_NAME=asuntos_publicos
+DB_USER=production_user
+DB_PASSWORD=strong_production_password
+PORT=4000
+SESSION_SECRET=strong_random_secret_key
+NODE_ENV=production
+```
+</CodeGroup>
+
+### Using Environment Variables
+
+Update `src/keys.js` to use environment variables:
+
+```javascript src/keys.js
+module.exports = {
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'asuntos_publicos',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  multipleStatements: true
+};
+```
+
+<Warning>
+  Create a `.env` file in the project root and add it to `.gitignore` to prevent committing sensitive data.
+</Warning>
+
+## Socket.IO Configuration
+
+The application uses Socket.IO for real-time updates:
+
+```javascript src/index.js
+const server = app.listen(app.get('port'), () => {
+  console.log('¡Servidor Iniciado Correctamente!');
+});
+
+const SocketIO = require('socket.io');
+const io = SocketIO(server);
+
+io.on('connection', (socket) => {
+  console.log('¡Se ha detectado una conexión!', socket.id);
+  // Socket event handlers...
+});
+```
+
+Socket events are used for:
+- Real-time permit updates
+- New permit notifications
+- Permit approval/cancellation notifications
+
+## Routes Configuration
+
+The application defines the following route modules:
+
+```javascript src/index.js
+app.use(require('./routes/authentications.js'));
+app.use('/venta_de_bebidas', require('./routes/bebidas.js'));
+app.use('/eventos_especiales', require('./routes/eventos.js'));
+app.use('/publicidad_y_propaganda', require('./routes/publicidad.js'));
+app.use('/usuarios', require('./routes/usuarios.js'));
+```
+
+<CardGroup cols={2}>
+  <Card title="/" icon="lock">
+    Authentication routes (login, logout)
+  </Card>
+  <Card title="/venta_de_bebidas" icon="wine-glass">
+    Alcoholic beverage permits
+  </Card>
+  <Card title="/eventos_especiales" icon="calendar">
+    Special event permits
+  </Card>
+  <Card title="/publicidad_y_propaganda" icon="bullhorn">
+    Advertising and propaganda permits
+  </Card>
+  <Card title="/usuarios" icon="users">
+    User management (admin only)
+  </Card>
+</CardGroup>
+
+## Production Recommendations
+
+<Steps>
+  <Step title="Use Process Manager">
+    Use PM2 or similar to manage the Node.js process:
+    
+    ```bash
+    npm install -g pm2
+    pm2 start src/index.js --name "municipal-permits"
+    pm2 save
+    pm2 startup
+    ```
+  </Step>
+
+  <Step title="Configure Reverse Proxy">
+    Use Nginx or Apache as a reverse proxy:
+    
+    ```nginx
+    server {
+      listen 80;
+      server_name your-domain.com;
+      
+      location / {
+        proxy_pass http://localhost:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Enable HTTPS">
+    Use Let's Encrypt for free SSL certificates:
+    
+    ```bash
+    certbot --nginx -d your-domain.com
+    ```
+  </Step>
+
+  <Step title="Configure Firewall">
+    Only expose necessary ports:
+    
+    ```bash
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+    ufw enable
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Security" icon="shield" href="/deployment/security">
+    Configure security settings and best practices
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/authentication">
+    Explore the API endpoints
+  </Card>
+</CardGroup>

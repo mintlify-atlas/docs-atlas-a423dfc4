@@ -1,0 +1,108 @@
+---
+title: Introduction
+description: Overview of the municipal permits management system for Lechería Municipality
+---
+
+Welcome to the Municipal Permits Management System (Sistema de Permisos Municipales), a comprehensive SaaS application designed for the Public Affairs Directorate of Lechería Municipality.
+
+## What it does
+
+This system manages three types of municipal permits:
+
+<CardGroup cols={3}>
+  <Card title="Alcoholic Beverages" icon="wine-glass">
+    Permits for the sale of alcoholic beverages in commercial establishments
+  </Card>
+  <Card title="Special Events" icon="calendar">
+    Permits for organizing special events within the municipality
+  </Card>
+  <Card title="Advertising" icon="bullhorn">
+    Permits for advertising and propaganda materials in public spaces
+  </Card>
+</CardGroup>
+
+## Who it's for
+
+The system is designed for municipal staff with three distinct user roles:
+
+- **Administrators** - Full system access including user management and permit approval
+- **Analysts** - Create, edit, and review permit applications
+- **Developers** - System maintenance and configuration access
+
+## Key capabilities
+
+### Permit lifecycle management
+
+Track permits from initial request through approval and issuance:
+
+- Create new permit applications with applicant information
+- Upload payment verification documents
+- Review and approve pending permits
+- Cancel permits with observation notes
+- Generate PDF reports for approved permits
+
+### Real-time updates
+
+The system uses Socket.io to provide real-time synchronization across all connected clients:
+
+```javascript
+// Real-time permit creation notification
+socket.on('publicidad:nuevo-permiso', async (data) => {
+  await pool.query('SELECT * FROM permisos_publicidad WHERE codigo_permiso=?', 
+    [data.permiso], (err, result) => {
+      if (result.length > 0) {
+        io.sockets.emit('publicidad:nuevo-permiso', result[0]);
+      }
+    });
+});
+```
+
+### Secure authentication
+
+Built with bcrypt password hashing and express-session for secure user authentication:
+
+```javascript
+const bcrypt = require('bcryptjs');
+const session = require('express-session');
+
+// Session configuration
+app.use(session({
+  key: 'permisos_municipales_pass',
+  secret: 'permisos_municipales',
+  resave: false,
+  saveUninitialized: false
+}));
+```
+
+### PDF generation
+
+Automatic generation of official permit documents using html-pdf:
+
+- Standardized permit templates
+- Embedded applicant and permit details
+- Download or view generated PDFs directly
+
+## Technology stack
+
+The system is built with:
+
+- **Backend**: Node.js with Express.js framework
+- **Database**: MySQL for data persistence
+- **Templates**: EJS for server-side rendering
+- **Real-time**: Socket.io for live updates
+- **Security**: bcryptjs for password encryption
+- **File uploads**: Multer for handling payment receipts and approved permits
+- **PDF generation**: html-pdf with PhantomJS
+
+## Get started
+
+Ready to start using the system? Follow our [quickstart guide](/quickstart) to:
+
+1. Access the system with your credentials
+2. Navigate the main interface
+3. Create your first permit application
+4. Review and approve permits
+
+<Note>
+  All users must have credentials created by an Administrator or Developer before accessing the system.
+</Note>

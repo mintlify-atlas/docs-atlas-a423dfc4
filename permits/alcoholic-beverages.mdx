@@ -1,0 +1,446 @@
+---
+title: Alcoholic Beverage Permits
+description: Complete guide for managing permits for alcoholic beverage sales
+---
+
+## Overview
+
+Alcoholic beverage permits are required for businesses that want to sell alcoholic beverages within the municipality. These permits track the authorization period, schedule, and location where beverages can be sold.
+
+## Required Fields
+
+When creating or editing an alcoholic beverage permit, the following information is required:
+
+<ParamField path="habilitacion" type="date" required>
+  Start date when the permit becomes valid (issue date)
+</ParamField>
+
+<ParamField path="vencimiento" type="date" required>
+  Expiration date of the permit
+</ParamField>
+
+<ParamField path="horario" type="string" required>
+  Authorized schedule for alcoholic beverage sales (e.g., "8:00 AM - 10:00 PM")
+</ParamField>
+
+<ParamField path="nombre" type="string" required>
+  Applicant's first name
+</ParamField>
+
+<ParamField path="apellido" type="string" required>
+  Applicant's last name
+</ParamField>
+
+<ParamField path="idDocument" type="string" required>
+  Applicant's identification document number
+</ParamField>
+
+<ParamField path="tlf" type="string" required>
+  Applicant's phone number
+</ParamField>
+
+<ParamField path="habitacion" type="string" required>
+  Applicant's address or location
+</ParamField>
+
+<ParamField path="sector" type="string" required>
+  Sector or area where the permit is authorized (sector_permisado)
+</ParamField>
+
+<ParamField path="comprobante" type="file">
+  Payment receipt file upload (optional)
+</ParamField>
+
+<ParamField path="today" type="string" required>
+  Current date in YYYY-MM-DD format for validation
+</ParamField>
+
+## Creating a Permit
+
+To create a new alcoholic beverage permit, send a POST request with multipart form data:
+
+```bash
+POST /venta_de_bebidas/add
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+```javascript
+const formData = new FormData();
+formData.append('habilitacion', '2026-03-01');
+formData.append('vencimiento', '2027-03-01');
+formData.append('horario', '8:00 AM - 10:00 PM');
+formData.append('nombre', 'Juan');
+formData.append('apellido', 'Pérez');
+formData.append('idDocument', 'V-12345678');
+formData.append('tlf', '0414-1234567');
+formData.append('habitacion', 'Calle Principal #123');
+formData.append('sector', 'Centro Comercial Plaza');
+formData.append('comprobante', fileInput.files[0]); // Optional
+formData.append('today', '2026-03-04');
+```
+
+### Response
+
+```json
+{
+  "success": "¡Se ha registrado correctamente el permiso!",
+  "permiso": "2026-001"
+}
+```
+
+The system automatically generates a unique permit code in the format `YYYY-NNN` (year + sequential number).
+
+### Error Responses
+
+```json
+// Date validation error
+{
+  "errno": "¡Fecha incorrecta!",
+  "message": "¡Fecha Incorrecta!",
+  "code": "ERRDATE",
+  "date": "04/03/2026"
+}
+```
+
+## Editing a Permit
+
+Update an existing permit by sending a POST request:
+
+```bash
+POST /venta_de_bebidas/edit
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+All fields from creation plus:
+
+<ParamField path="permiso" type="integer" required>
+  ID of the permit to edit
+</ParamField>
+
+<ParamField path="needPermiso" type="string">
+  Set to "true" if updating the payment receipt, "false" otherwise
+</ParamField>
+
+### Example
+
+```javascript
+const formData = new FormData();
+formData.append('permiso', '5');
+formData.append('habilitacion', '2026-03-01');
+formData.append('vencimiento', '2027-03-01');
+formData.append('horario', '9:00 AM - 11:00 PM');
+formData.append('nombre', 'Juan');
+formData.append('apellido', 'Pérez');
+formData.append('idDocument', 'V-12345678');
+formData.append('tlf', '0414-1234567');
+formData.append('habitacion', 'Calle Principal #123');
+formData.append('sector', 'Centro Comercial Plaza');
+formData.append('needPermiso', 'false');
+formData.append('today', '2026-03-04');
+```
+
+### Response
+
+```json
+{
+  "success": "¡Se ha editado correctamente el permiso!",
+  "permiso": 5
+}
+```
+
+## Approving a Permit
+
+Approve a permit by uploading the authorized permit document:
+
+```bash
+POST /venta_de_bebidas/aprobate
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="permiso" type="integer" required>
+  ID of the permit to approve
+</ParamField>
+
+<ParamField path="permiso_aprobado" type="file" required>
+  Authorized permit document file
+</ParamField>
+
+### Example
+
+```javascript
+const formData = new FormData();
+formData.append('permiso', '5');
+formData.append('permiso_aprobado', authorizedDocument.files[0]);
+```
+
+### Response
+
+```json
+{
+  "success": "¡Se ha aprobado correctamente el permiso!",
+  "permiso": 5
+}
+```
+
+The permit's `emitido` field is set to 1 (approved status).
+
+## Canceling a Permit
+
+Cancel a permit with an observation note:
+
+```bash
+POST /venta_de_bebidas/cancel
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="permiso" type="integer" required>
+  ID of the permit to cancel
+</ParamField>
+
+<ParamField path="observacion" type="string" required>
+  Reason for cancellation
+</ParamField>
+
+### Example
+
+```javascript
+const formData = new FormData();
+formData.append('permiso', '5');
+formData.append('observacion', 'Documentación incompleta');
+```
+
+### Response
+
+```json
+{
+  "success": "¡Se ha cancelado la emisión del permiso correctamente!",
+  "permiso": 5
+}
+```
+
+## Searching and Filtering
+
+Search for permits with various filters:
+
+```bash
+POST /venta_de_bebidas/search
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="busqueda" type="string">
+  Search term to filter results (searches across permit code, dates, applicant name, document, phone, sector)
+</ParamField>
+
+<ParamField path="estado" type="string" required>
+  Filter by status: "Todos" (all), "Emitido" (approved), or "No Emitido" (not approved)
+</ParamField>
+
+### Example
+
+```javascript
+const formData = new FormData();
+formData.append('busqueda', 'Juan');
+formData.append('estado', 'Emitido');
+```
+
+### Response
+
+Returns HTML template with search results:
+
+```json
+{
+  "plantilla": "<button class='item aproved' id='itemResult1'>...</button>..."
+}
+```
+
+Results are color-coded:
+- **Red (disaproved)**: Not approved (`emitido=0`)
+- **Green (aproved)**: Approved (`emitido=1`, `cancelado=0`)
+- **Gray (canceled)**: Canceled (`cancelado=1`)
+
+## Getting Permit Details
+
+Retrieve details for a specific permit:
+
+```bash
+POST /venta_de_bebidas/get
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="id" type="integer" required>
+  Permit ID
+</ParamField>
+
+### Response
+
+```json
+{
+  "result": {
+    "id": 5,
+    "codigo_permiso": "2026-001",
+    "habilitacion": "2026-03-01",
+    "vencimiento": "2027-03-01",
+    "horario": "8:00 AM - 10:00 PM",
+    "dat_confirmacion": 1,
+    "requisitor_nombre": "Juan",
+    "requisitor_apellido": "Pérez",
+    "requisitor_doc": "V-12345678",
+    "requisitor_tlf": "0414-1234567",
+    "requisitor_habitacion": "Calle Principal #123",
+    "sector_permisado": "Centro Comercial Plaza",
+    "comprobante_de_pago": "comprobante_de_pago_1234567890.pdf",
+    "permiso_autorizado": "permiso_autorizado1234567890.pdf",
+    "creador": "Admin User",
+    "editor": "Admin User",
+    "emitido": 1,
+    "cancelado": 0,
+    "observacion": ""
+  },
+  "usuario": { /* current session user */ }
+}
+```
+
+## Listing All Permits
+
+Get all alcoholic beverage permits:
+
+```bash
+GET /venta_de_bebidas/
+```
+
+Returns a rendered page with all permits from the `permisos_bebidas` table.
+
+## PDF Generation
+
+Generate a PDF document for a specific permit:
+
+```bash
+GET /venta_de_bebidas/permiso/bebidas-alcoholicas_2026-001
+```
+
+The URL pattern is: `bebidas-alcoholicas_{codigo_permiso}`
+
+### Response
+
+Returns a PDF document with:
+- Content-Type: `application/pdf`
+- Permit details formatted using the template at `views/templates/permisos/bebidas.html`
+- Information includes: permit code, dates, schedule, applicant details, authorized area
+
+## Deleting a Permit
+
+<Warning>
+  Only users with "Administrador" or "Desarrollador" roles can delete permits.
+</Warning>
+
+Delete a permit (only if not approved):
+
+```bash
+DELETE /venta_de_bebidas/
+Content-Type: multipart/form-data
+```
+
+### Request Body
+
+<ParamField path="id" type="integer" required>
+  ID of the permit to delete
+</ParamField>
+
+### Response
+
+```json
+{
+  "message": "¡El permiso ha sido eliminado!"
+}
+```
+
+### Restrictions
+
+- Cannot delete permits that have been approved (`emitido=1`)
+- Cannot delete if newer permits from the same year have already been approved
+- When deleted, subsequent permit codes are automatically renumbered
+
+### Error Responses
+
+```json
+// Permit not found
+{
+  "message": "¡Permiso no encontrado!"
+}
+
+// Permit already approved
+{
+  "message": "El permiso no puede ser eliminado una vez ha sido aprobado!"
+}
+
+// Newer permits exist
+{
+  "message": "¡El permiso no puede ser eliminado debido a que existen permisos que han sido aprobados después de haberse creado éste permiso!"
+}
+```
+
+## Report Generation
+
+Generate a comprehensive PDF report of all alcoholic beverage permits:
+
+```bash
+GET /venta_de_bebidas/reporte
+```
+
+The report includes:
+- Total registered permits
+- Approved permits (emitido)
+- Not approved permits (no emitido)
+- Canceled permits
+- Payment confirmation status
+- Detailed tables for each category
+
+## Database Schema
+
+The `permisos_bebidas` table structure:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | int | Primary key |
+| codigo_permiso | varchar | Unique permit code (YYYY-NNN) |
+| habilitacion | date | Start/issue date |
+| vencimiento | date | Expiration date |
+| horario | varchar | Authorized schedule |
+| dat_confirmacion | tinyint | Payment confirmed (0 or 1) |
+| requisitor_nombre | varchar | Applicant first name |
+| requisitor_apellido | varchar | Applicant last name |
+| requisitor_doc | varchar | ID document |
+| requisitor_tlf | varchar | Phone number |
+| requisitor_habitacion | varchar | Address |
+| sector_permisado | varchar | Authorized sector |
+| comprobante_de_pago | varchar | Payment receipt filename |
+| permiso_autorizado | varchar | Authorized permit filename |
+| creador | varchar | Creator name |
+| editor | varchar | Last editor name |
+| fecha_creacion | timestamp | Creation date |
+| emitido | tinyint | Approval status (0 or 1) |
+| cancelado | tinyint | Canceled status (0 or 1) |
+| observacion | text | Cancellation notes |
+
+## File Storage
+
+Files are stored in:
+```
+../public/server-files/asuntos_publicos/permisos_municipales/bebidas/
+```
+
+File naming conventions:
+- Payment receipts: `comprobante_de_pago_{timestamp}{extension}`
+- Authorized permits: `permiso_autorizado{timestamp}{extension}`

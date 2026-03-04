@@ -1,0 +1,426 @@
+---
+title: Reports
+description: Generate comprehensive reports for all permit types in the Sistema de Permisos Municipales
+---
+
+## Overview
+
+The reporting system generates comprehensive PDF reports for each permit type, providing detailed breakdowns by status and authorization state. Reports are useful for auditing, record-keeping, and administrative oversight.
+
+## Report types
+
+<CardGroup cols={3}>
+  <Card title="Alcoholic beverages" icon="wine-glass" href="#alcoholic-beverage-reports">
+    Complete report of all beverage sales permits
+  </Card>
+  <Card title="Advertising" icon="bullhorn" href="#advertising-reports">
+    Full advertising and propaganda permit report
+  </Card>
+  <Card title="Special events" icon="calendar" href="#event-reports">
+    Comprehensive special events permit report
+  </Card>
+</CardGroup>
+
+## Generating reports
+
+### Alcoholic beverage reports
+
+Generate a complete report for all alcoholic beverage permits:
+
+```bash
+GET /venta_de_bebidas/reporte
+```
+
+Response: PDF file with `Content-Type: application/pdf`
+
+### Advertising reports
+
+Generate a complete report for all advertising permits:
+
+```bash
+GET /publicidad_y_propaganda/reporte
+```
+
+### Event reports
+
+Generate a complete report for all special event permits:
+
+```bash
+GET /eventos_especiales/reporte
+```
+
+<Note>
+Reports are generated on-demand and include all permits from the database at the time of generation.
+</Note>
+
+## Report structure
+
+All reports follow a consistent structure with the following sections:
+
+### Header section
+
+- Report title (e.g., "Reporte Completo de Permisos de Venta de Bebidas Alcohólicas")
+- Generation timestamp
+- Summary statistics
+
+### Summary statistics
+
+Each report includes aggregate counts:
+
+<ResponseField name="Registrados" type="number">
+  Total number of registered permits (all statuses)
+</ResponseField>
+
+<ResponseField name="Emitidos" type="number">
+  Number of approved permits (emitido=1, cancelado=0)
+</ResponseField>
+
+<ResponseField name="No Emitidos" type="number">
+  Number of pending permits (emitido=0)
+</ResponseField>
+
+<ResponseField name="Cancelados" type="number">
+  Number of cancelled permits (cancelado=1)
+</ResponseField>
+
+### Data tables
+
+The report contains multiple tables, each with permits grouped by status:
+
+<Accordion title="Permisos Emitidos (Approved permits)">
+Approved permits that are active.
+
+**Columns:**
+- Código (Permit code)
+- Requisitor (Applicant name)
+- Autorizado por el DAT (Payment authorized: Sí/No)
+- F. de Registro (Registration date)
+
+**Filter:** emitido=1 AND cancelado=0
+</Accordion>
+
+<Accordion title="Permisos no Emitidos (Pending permits)">
+Permits awaiting approval.
+
+**Columns:**
+- Código
+- Requisitor
+- Autorizado por el DAT
+- F. de Registro
+
+**Filter:** emitido=0
+</Accordion>
+
+<Accordion title="Permisos Cancelados (Cancelled permits)">
+Permits that were cancelled with observations.
+
+**Columns:**
+- Código
+- Requisitor
+- Autorizado por el DAT
+- F. de Registro
+
+**Filter:** cancelado=1
+</Accordion>
+
+<Accordion title="Permisos Autorizados (Authorized permits)">
+Permits with payment confirmation.
+
+**Columns:**
+- Código
+- Requisitor
+- Emisión (Emitido/No Emitido status)
+- F. de Registro
+
+**Filter:** dat_confirmacion=1
+</Accordion>
+
+<Accordion title="Permisos no Autorizados (Unauthorized permits)">
+Permits without payment confirmation.
+
+**Columns:**
+- Código
+- Requisitor
+- Emisión
+- F. de Registro
+
+**Filter:** dat_confirmacion=0
+</Accordion>
+
+## Report generation process
+
+The system follows this process to generate reports:
+
+<Steps>
+  <Step title="Query database">
+    Retrieve all permits of the specified type from the database:
+    
+    ```javascript
+    await pool.query('SELECT * FROM permisos_bebidas', (err, bebidas) => {
+      // Process results
+    });
+    ```
+  </Step>
+  
+  <Step title="Process data">
+    Categorize permits by status and generate HTML tables:
+    
+    ```javascript
+    // Initialize counters
+    let todos = { count: 0, html: `` };
+    let emitidos = { count: 0, html: `` };
+    let no_emitidos = { count: 0, html: `` };
+    let cancelados = { count: 0, html: `` };
+    
+    // Process each permit
+    bebidas.forEach(bebida => {
+      if(bebida.emitido == 0){
+        no_emitidos = addHtml(no_emitidos, plantilla);
+      } else if(bebida.cancelado == 0){
+        emitidos = addHtml(emitidos, plantilla);
+      } else {
+        cancelados = addHtml(cancelados, plantilla);
+      }
+      todos = addHtml(todos, plantilla);
+    });
+    ```
+  </Step>
+  
+  <Step title="Render template">
+    Use the EJS template to generate HTML:
+    
+    ```javascript
+    let params = {
+      host: req.headers.host,
+      titleReport: 'Reporte Completo de Permisos...',
+      cuentas: 'Registrados: ' + todos.count + ' / Emitidos: ' + ...,
+      html: emitidos + no_emitidos + cancelados + ...
+    };
+    
+    let data = gf.renderizador(params, 
+      fs.readFileSync(path.join(__dirname, 
+        '../views/templates/reporte.html')).toString());
+    ```
+  </Step>
+  
+  <Step title="Generate PDF">
+    Convert HTML to PDF using html-pdf and phantomjs:
+    
+    ```javascript
+    let phantom = require('phantomjs').path;
+    let options = {
+      "phantomPath": phantom,
+      "format": 'A4'
+    };
+    
+    pdf.create(data, options).toBuffer(function(err, buffer){
+      res.setHeader('Content-Type', 'application/pdf');
+      res.send(buffer);
+    });
+    ```
+  </Step>
+</Steps>
+
+## Report sections in detail
+
+### Emitted permits section
+
+This section shows all permits that have been approved and are currently active:
+
+```javascript
+if(bebida.emitido == 1 && bebida.cancelado == 0){
+  emitidos = addHtml(emitidos, plantilla);
+}
+```
+
+Formatted as a table with alternating row colors for readability.
+
+### Not emitted permits section
+
+Pending permits awaiting approval decision:
+
+```javascript
+if(bebida.emitido == 0){
+  no_emitidos = addHtml(no_emitidos, plantilla);
+}
+```
+
+<Note>
+This section helps administrators identify permits that need review.
+</Note>
+
+### Cancelled permits section
+
+Permits that were cancelled, preserved for record-keeping:
+
+```javascript
+if(bebida.cancelado == 1){
+  cancelados = addHtml(cancelados, plantilla);
+}
+```
+
+### Authorization tracking
+
+Separate sections track payment authorization status:
+
+```javascript
+// Authorized (payment confirmed)
+if(bebida.dat_confirmacion == 1){
+  autorizados = addHtml(autorizados, plantilla_confirmacion);
+}
+
+// Not authorized (payment pending/missing)
+if(bebida.dat_confirmacion == 0){
+  no_autorizados = addHtml(no_autorizados, plantilla_confirmacion);
+}
+```
+
+## Date formatting
+
+Dates are formatted for display using the global functions:
+
+```javascript
+gf.convertToDate(bebida.fecha_creacion)
+// Converts MySQL DATETIME to readable format
+// Example: 2024-01-15 14:30:00 → 15/01/2024
+```
+
+## Report customization
+
+The report template is located at:
+- `src/views/templates/reporte.html`
+
+The template uses placeholders for dynamic content:
+
+```html
+<div class="header">
+  <h1>{{titleReport}}</h1>
+  <p>{{cuentas}}</p>
+</div>
+
+<div class="content">
+  {{html}}
+</div>
+```
+
+<Accordion title="Template placeholders">
+- `{{host}}` - Server hostname
+- `{{titleReport}}` - Report title
+- `{{cuentas}}` - Summary statistics string
+- `{{html}}` - All report sections HTML
+- `{{todos}}` - Total permits table (if needed)
+</Accordion>
+
+## PDF configuration
+
+The system uses these PDF generation settings:
+
+```javascript
+let options = {
+  "phantomPath": require('phantomjs').path,
+  "format": 'A4',
+  "orientation": 'portrait',
+  "border": {
+    "top": "0.5in",
+    "right": "0.5in",
+    "bottom": "0.5in",
+    "left": "0.5in"
+  }
+};
+```
+
+<Info>
+PhantomJS is used as the rendering engine to convert HTML to PDF. Ensure it's properly installed in production.
+</Info>
+
+## Performance considerations
+
+<Warning>
+Report generation can be resource-intensive for large datasets:
+
+- Reports query ALL permits from the database
+- HTML rendering happens in-memory
+- PDF conversion uses phantomjs (CPU-intensive)
+- Large reports may take several seconds to generate
+</Warning>
+
+### Optimization tips
+
+<CardGroup cols={2}>
+  <Card title="Database indexes" icon="database">
+    Ensure indexes exist on `emitido`, `cancelado`, and `dat_confirmacion` fields.
+  </Card>
+  <Card title="Caching" icon="clock-rotate-left">
+    Consider caching reports for a short period (e.g., 5 minutes) if frequently accessed.
+  </Card>
+  <Card title="Pagination" icon="table-list">
+    For very large datasets, consider paginating or filtering reports by date range.
+  </Card>
+  <Card title="Async generation" icon="spinner">
+    For production, consider generating reports asynchronously and notifying when ready.
+  </Card>
+</CardGroup>
+
+## Common report use cases
+
+<Accordion title="Monthly audit">
+Generate reports at the end of each month to review:
+- Total permits processed
+- Approval/rejection rates
+- Outstanding pending permits
+- Payment confirmation status
+</Accordion>
+
+<Accordion title="Year-end reporting">
+Use reports for annual statistics:
+- Total permits issued per year
+- Trends over time
+- Compliance tracking
+</Accordion>
+
+<Accordion title="Department review">
+Managers can use reports to:
+- Monitor staff workload
+- Identify bottlenecks
+- Track processing times
+</Accordion>
+
+## Troubleshooting
+
+<Accordion title="Report shows no data">
+**Possible causes:**
+- No permits in the database for that type
+- Database connection issue
+- Query error
+
+**Solution:** Check database connectivity and verify permits exist.
+</Accordion>
+
+<Accordion title="PDF generation fails">
+**Possible causes:**
+- PhantomJS not installed or not in PATH
+- Insufficient memory
+- Template rendering error
+
+**Solution:** Verify phantomjs installation and check server logs.
+</Accordion>
+
+<Accordion title="Report formatting issues">
+**Possible causes:**
+- Template HTML errors
+- Missing CSS styles
+- Data formatting problems
+
+**Solution:** Review template file and date formatting functions.
+</Accordion>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Individual permit PDFs" icon="file-pdf" href="/guides/permit-workflow#generating-pdfs">
+    Learn how to generate PDFs for individual permits
+  </Card>
+  <Card title="Database schema" icon="database" href="/technical/database-schema">
+    Understand the data structure behind reports
+  </Card>
+</CardGroup>
